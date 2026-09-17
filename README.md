@@ -14,6 +14,13 @@ A lightweight Windows Notepad clone with **inline text highlighting** and tabbed
 
 Requirements: Node.js, Rust (rustup), Windows WebView2 (usually preinstalled).
 
+If your C: drive is low on space, point Cargo builds elsewhere before running:
+
+```powershell
+$env:CARGO_TARGET_DIR = "D:\cargo-target\NoteEasy"
+$env:CARGO_HOME = "D:\cargo-home"
+```
+
 ```bash
 npm install
 npm run tauri dev

@@ -78,7 +78,7 @@ const NotepadEditor = forwardRef(function NotepadEditor(
     if (!editor) return;
     const current = editor.getHTML();
     if (contentHtml != null && contentHtml !== current) {
-      editor.commands.setContent(contentHtml, false);
+      editor.commands.setContent(contentHtml, { emitUpdate: false });
     }
   }, [contentHtml, editor]);
 
@@ -194,7 +194,7 @@ function replaceInEditor(editor, query, replacement, all) {
         return `<p>${escaped || "<br>"}</p>`;
       })
       .join("");
-    editor.commands.setContent(html);
+      editor.commands.setContent(html, { emitUpdate: true });
     return 1;
   }
 

@@ -21,10 +21,13 @@ import {
   showInfo,
   writeDocument,
 } from "./utils/files.js";
+import { isTauri } from "./utils/tauri.js";
 
 export default function App() {
-  const [tabs, setTabs] = useState(() => [createTab()]);
-  const [activeId, setActiveId] = useState(() => tabs[0]?.id);
+  const initialTab = useRef(null);
+  if (!initialTab.current) initialTab.current = createTab();
+  const [tabs, setTabs] = useState(() => [initialTab.current]);
+  const [activeId, setActiveId] = useState(() => initialTab.current.id);
   const [ready, setReady] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const [statusBar, setStatusBar] = useState(true);
@@ -89,20 +92,29 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const session = await loadSession();
-      if (cancelled) return;
-      if (session?.tabs?.length) {
-        setTabs(session.tabs.map((t) => createTab(t)));
-        setActiveId(session.activeId || session.tabs[0].id);
-        if (typeof session.wordWrap === "boolean") setWordWrap(session.wordWrap);
-        if (typeof session.statusBar === "boolean")
-          setStatusBar(session.statusBar);
-        if (session.fontFamily) setFontFamily(session.fontFamily);
-        if (session.fontSize) setFontSize(session.fontSize);
-        if (session.zoom) setZoom(session.zoom);
-        await restoreWindowState(session.window);
+      try {
+        const session = await Promise.race([
+          loadSession(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 2000)),
+        ]);
+        if (cancelled) return;
+        if (session?.tabs?.length) {
+          setTabs(session.tabs.map((t) => createTab(t)));
+          setActiveId(session.activeId || session.tabs[0].id);
+          if (typeof session.wordWrap === "boolean")
+            setWordWrap(session.wordWrap);
+          if (typeof session.statusBar === "boolean")
+            setStatusBar(session.statusBar);
+          if (session.fontFamily) setFontFamily(session.fontFamily);
+          if (session.fontSize) setFontSize(session.fontSize);
+          if (session.zoom) setZoom(session.zoom);
+          if (isTauri()) await restoreWindowState(session.window);
+        }
+      } catch (err) {
+        console.error("Session restore failed", err);
+      } finally {
+        if (!cancelled) setReady(true);
       }
-      setReady(true);
     })();
     return () => {
       cancelled = true;
@@ -111,7 +123,7 @@ export default function App() {
 
   // Debounced autosave
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !isTauri()) return;
     const timer = setTimeout(() => {
       persistSession();
     }, 400);
@@ -130,20 +142,27 @@ export default function App() {
 
   // Save on close
   useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten = null;
     const win = getCurrentWindow();
-    const unlistenPromise = win.onCloseRequested(async (event) => {
-      event.preventDefault();
-      await persistSession();
-      await win.destroy();
-    });
+    win
+      .onCloseRequested(async (event) => {
+        event.preventDefault();
+        await persistSession();
+        await win.destroy();
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch((err) => console.error(err));
     return () => {
-      unlistenPromise.then((fn) => fn());
+      unlisten?.();
     };
   }, [persistSession]);
 
   // Window title
   useEffect(() => {
-    if (!activeTab) return;
+    if (!activeTab || !isTauri()) return;
     const title = `${activeTab.dirty ? "*" : ""}${activeTab.title} - NoteEasy`;
     getCurrentWindow().setTitle(title).catch(() => {});
   }, [activeTab]);
