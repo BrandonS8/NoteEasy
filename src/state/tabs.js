@@ -1,3 +1,5 @@
+import { createDefaultDocStyles, mergeDocStyles } from "./docStyles.js";
+
 let tabSeq = 1;
 
 export function createTab(partial = {}) {
@@ -9,6 +11,7 @@ export function createTab(partial = {}) {
     contentHtml: partial.contentHtml ?? "<p></p>",
     dirty: partial.dirty ?? false,
     encoding: partial.encoding ?? "UTF-8",
+    docStyles: mergeDocStyles(partial.docStyles || createDefaultDocStyles()),
   };
 }
 

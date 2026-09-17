@@ -35,21 +35,23 @@ export async function readDocument(filePath) {
       const parsed = JSON.parse(trimmed);
       return {
         contentHtml: parsed.contentHtml || plainTextToHtml(parsed.text || ""),
+        docStyles: parsed.docStyles || null,
         encoding: "UTF-8",
       };
     }
-    return { contentHtml: trimmed || "<p></p>", encoding: "UTF-8" };
+    return { contentHtml: trimmed || "<p></p>", docStyles: null, encoding: "UTF-8" };
   }
-  return { contentHtml: plainTextToHtml(raw), encoding: "UTF-8" };
+  return { contentHtml: plainTextToHtml(raw), docStyles: null, encoding: "UTF-8" };
 }
 
-export async function writeDocument(filePath, contentHtml) {
+export async function writeDocument(filePath, contentHtml, docStyles = null) {
   if (isRichNotePath(filePath)) {
     const payload = JSON.stringify(
       {
         version: 1,
         contentHtml,
         text: htmlToPlainText(contentHtml),
+        docStyles: docStyles || undefined,
       },
       null,
       2,

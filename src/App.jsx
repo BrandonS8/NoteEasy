@@ -5,8 +5,11 @@ import TabBar from "./components/TabBar.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import FindBar from "./components/FindBar.jsx";
 import FontDialog from "./components/FontDialog.jsx";
+import FormatToolbar from "./components/FormatToolbar.jsx";
+import EditorContextMenu from "./components/EditorContextMenu.jsx";
 import NotepadEditor from "./editor/NotepadEditor.jsx";
 import { createTab, titleFromPath } from "./state/tabs.js";
+import { mergeDocStyles } from "./state/docStyles.js";
 import {
   captureWindowState,
   loadSession,
@@ -41,6 +44,8 @@ export default function App() {
   const [replaceWith, setReplaceWith] = useState("");
   const [findStatus, setFindStatus] = useState("");
   const [fontOpen, setFontOpen] = useState(false);
+  const [activeFormats, setActiveFormats] = useState({});
+  const [ctxMenu, setCtxMenu] = useState(null);
 
   const editorRef = useRef(null);
   const tabsRef = useRef(tabs);
@@ -77,6 +82,7 @@ export default function App() {
         contentHtml: t.contentHtml,
         dirty: t.dirty,
         encoding: t.encoding,
+        docStyles: t.docStyles,
       })),
       activeId: activeIdRef.current,
       wordWrap: s.wordWrap,
@@ -200,7 +206,7 @@ export default function App() {
           ? editorRef.current?.getHTML?.() ?? tab.contentHtml
           : tab.contentHtml;
 
-      await writeDocument(filePath, html);
+      await writeDocument(filePath, html, tab.docStyles);
       updateTab(tabId, {
         path: filePath,
         title: titleFromPath(filePath),
@@ -261,6 +267,7 @@ export default function App() {
       contentHtml: doc.contentHtml,
       dirty: false,
       encoding: doc.encoding,
+      docStyles: doc.docStyles || undefined,
     });
     setTabs((prev) => [...prev, tab]);
     setActiveId(tab.id);
@@ -274,7 +281,7 @@ export default function App() {
   );
 
   const handleAction = useCallback(
-    async (action) => {
+    async (action, payload) => {
       const ed = editorRef.current;
       switch (action) {
         case "new":
@@ -323,9 +330,54 @@ export default function App() {
         case "font":
           setFontOpen(true);
           break;
+        case "setFontSize":
+          if (typeof payload === "number" && payload > 0) {
+            ed?.setFontSize(payload);
+          }
+          break;
+        case "setTextColor":
+          if (payload) ed?.setTextColor(payload);
+          break;
+        case "clearTextColor":
+          ed?.clearTextColor();
+          break;
+        case "setDocStyle":
+          ed?.setDocStyle(payload || "body");
+          break;
+        case "updateStyleToMatch": {
+          const styleId = ed?.getDocStyle?.() || "body";
+          if (styleId === "body") break;
+          const sample = ed?.sampleStyleFromSelection?.();
+          if (!sample) break;
+          const tab = tabsRef.current.find((t) => t.id === activeIdRef.current);
+          if (!tab) break;
+          updateTab(activeIdRef.current, {
+            docStyles: mergeDocStyles({
+              ...tab.docStyles,
+              [styleId]: sample,
+            }),
+            dirty: true,
+          });
+          break;
+        }
+        case "bold":
+          ed?.bold();
+          break;
+        case "italic":
+          ed?.italic();
+          break;
+        case "strike":
+          ed?.strike();
+          break;
+        case "bulletList":
+          ed?.bulletList();
+          break;
+        case "orderedList":
+          ed?.orderedList();
+          break;
         case "highlight":
         case "highlightYellow":
-          ed?.highlight("#ffeb3b");
+          ed?.highlight(payload || "#ffeb3b");
           break;
         case "highlightRed":
           ed?.highlight("#ffcdd2");
@@ -338,6 +390,9 @@ export default function App() {
           break;
         case "clearHighlight":
           ed?.clearHighlight();
+          break;
+        case "clearFormatting":
+          ed?.clearFormatting();
           break;
         case "zoomIn":
           setZoom((z) => Math.min(500, z + 10));
@@ -360,7 +415,7 @@ export default function App() {
           break;
       }
     },
-    [newTab, openFile, persistSession, saveTab],
+    [newTab, openFile, persistSession, saveTab, updateTab],
   );
 
   // Keyboard shortcuts
@@ -389,6 +444,12 @@ export default function App() {
       } else if (ctrl && e.shiftKey && key === "h") {
         e.preventDefault();
         handleAction("highlight");
+      } else if (ctrl && key === "b") {
+        e.preventDefault();
+        handleAction("bold");
+      } else if (ctrl && key === "i") {
+        e.preventDefault();
+        handleAction("italic");
       } else if (ctrl && (key === "=" || key === "+")) {
         e.preventDefault();
         handleAction("zoomIn");
@@ -433,9 +494,16 @@ export default function App() {
         onSelect={(id) => {
           flushActiveHtml();
           setActiveId(id);
+          setCtxMenu(null);
         }}
         onClose={closeTab}
         onNew={newTab}
+      />
+      <FormatToolbar
+        onAction={handleAction}
+        active={activeFormats}
+        selectionFontSize={activeFormats.fontSize}
+        baseFontSize={fontSize}
       />
       <FindBar
         mode={findMode}
@@ -469,13 +537,16 @@ export default function App() {
         ref={editorRef}
         contentHtml={activeTab.contentHtml}
         fontFamily={fontFamily}
-        fontSize={displayFontSize}
+        baseFontSize={displayFontSize}
         wordWrap={wordWrap}
+        docStyles={activeTab.docStyles}
         onUpdate={onEditorUpdate}
         onSelectionChange={({ line: ln, column: col }) => {
           setLine(ln);
           setColumn(col);
         }}
+        onActiveFormatsChange={setActiveFormats}
+        onContextMenu={(pos) => setCtxMenu(pos)}
       />
       <StatusBar
         line={line}
@@ -484,6 +555,16 @@ export default function App() {
         encoding={activeTab.encoding}
         visible={statusBar}
       />
+      {ctxMenu && (
+        <EditorContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          currentStyle={ctxMenu.docStyle || activeFormats.docStyle || "body"}
+          active={activeFormats}
+          onAction={handleAction}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
       {fontOpen && (
         <FontDialog
           fontFamily={fontFamily}
