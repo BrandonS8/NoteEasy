@@ -14,6 +14,12 @@ I just wanted highlighting in the regular notepad app. So I made my own notepad 
 - Toolbar that packs into an overflow menu when the window is narrow
 - Save as `.nte` (keeps formatting) or plain `.txt`
 
+Session data (open tabs, formatting, window size, dark mode) is stored in:
+
+`%APPDATA%\com.noteeasy.app\session.json`
+
+On most PCs that’s `C:\Users\<you>\AppData\Roaming\com.noteeasy.app\session.json`. Delete that file to reset the session.
+
 ## Screenshots
 
 Light mode:
