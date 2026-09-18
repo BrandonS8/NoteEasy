@@ -15,7 +15,7 @@
         "title": "NoteEasy",
         "width": 900,
         "height": 640,
-        "minWidth": 322,
+        "minWidth": 403,
         "minHeight": 180,
         "decorations": false
       }
