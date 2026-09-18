@@ -22,6 +22,10 @@ Dark mode:
 
 ![NoteEasy dark mode](docs/screenshot-dark.png)
 
+Compact mode (narrow window):
+
+![NoteEasy compact mode](docs/screenshot-compact.png)
+
 ## Download
 
 Latest Windows builds are on the [Releases](https://github.com/BrandonS8/NoteEasy/releases) page:
