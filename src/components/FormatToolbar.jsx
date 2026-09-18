@@ -276,15 +276,17 @@ export default function FormatToolbar({
       ref={rootRef}
     >
       <div className="toolbar-side toolbar-left">
-        <button
-          type="button"
-          className="fmt-btn"
-          title="Open"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onAction("open")}
-        >
-          <OpenIcon />
-        </button>
+        {!compact && (
+          <button
+            type="button"
+            className="fmt-btn"
+            title="Open"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onAction("open")}
+          >
+            <OpenIcon />
+          </button>
+        )}
 
         <div className="tb-dropdown">
           <div className="custom-highlight-box save-split">
@@ -738,6 +740,21 @@ export default function FormatToolbar({
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <div className="overflow-toolbar">
+                    <button
+                      type="button"
+                      className="fmt-btn"
+                      title="Open"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onAction("open");
+                        setOpenMenu(null);
+                      }}
+                    >
+                      <OpenIcon />
+                    </button>
+
+                    <div className="format-sep" />
+
                     <div className="font-size-group">
                       <select
                         className="font-size-select"
@@ -844,6 +861,21 @@ export default function FormatToolbar({
                     >
                       <SearchIcon />
                     </button>
+
+                    <div className="format-sep" />
+
+                    <button
+                      type="button"
+                      className={`fmt-btn theme-btn${darkMode ? " active" : ""}`}
+                      title="Dark mode"
+                      aria-pressed={darkMode}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onAction("darkMode");
+                      }}
+                    >
+                      <MoonIcon filled={darkMode} />
+                    </button>
                   </div>
                 </div>,
                 document.body,
@@ -878,18 +910,20 @@ export default function FormatToolbar({
         )}
       </div>
 
-      <div className="toolbar-side toolbar-right">
-        <button
-          type="button"
-          className="fmt-btn theme-btn"
-          title="Dark mode"
-          aria-pressed={darkMode}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onAction("darkMode")}
-        >
-          <MoonIcon filled={darkMode} />
-        </button>
-      </div>
+      {!compact && (
+        <div className="toolbar-side toolbar-right">
+          <button
+            type="button"
+            className="fmt-btn theme-btn"
+            title="Dark mode"
+            aria-pressed={darkMode}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onAction("darkMode")}
+          >
+            <MoonIcon filled={darkMode} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

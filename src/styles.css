@@ -88,12 +88,22 @@ body,
   overflow: visible;
 }
 
-.format-toolbar-row.is-compact .toolbar-right .zoom-icon {
-  display: none;
+.format-toolbar-row.is-compact {
+  gap: 4px;
+  padding: 4px 6px;
 }
 
-.format-toolbar-row.is-compact .zoom-input {
-  width: 44px;
+.format-toolbar-row.is-compact .format-toolbar {
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.format-toolbar-row.is-compact .toolbar-left {
+  z-index: 2;
+}
+
+.format-toolbar-row.is-compact .format-sep {
+  margin: 0 2px;
 }
 
 .format-toolbar {
