@@ -85,6 +85,25 @@ body,
   min-height: 42px;
   padding: 4px 8px;
   flex-shrink: 0;
+  overflow: visible;
+}
+
+.format-toolbar-row.is-compact .toolbar-right .zoom-icon {
+  display: none;
+}
+
+.format-toolbar-row.is-compact .zoom-input {
+  width: 44px;
+}
+
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  overflow: visible;
 }
 
 .toolbar-side {
@@ -153,12 +172,6 @@ body,
   border-bottom: 1px solid var(--border);
   padding: 0 4px;
   flex-shrink: 0;
-}
-
-.format-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 1px;
 }
 
 .format-group {
@@ -1107,6 +1120,49 @@ body,
 .swatch-btn.swatch-custom {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
   position: relative;
+}
+
+.swatch-btn.swatch-none {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.highlight-drop-btn {
+  gap: 4px;
+  width: auto;
+  padding: 0 6px;
+  min-width: 40px;
+}
+
+.highlight-drop-btn .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--swatch, transparent);
+  border: 1px solid var(--border-strong);
+  display: block;
+  box-sizing: border-box;
+}
+
+.overflow-drop {
+  margin-left: 2px;
+}
+
+.overflow-panel {
+  min-width: min(420px, 92vw);
+  padding: 8px;
+  left: auto;
+  right: 0;
+}
+
+.overflow-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .swatch-btn.swatch-custom::after {

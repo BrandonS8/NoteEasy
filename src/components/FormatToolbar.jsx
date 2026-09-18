@@ -115,6 +115,7 @@ export default function FormatToolbar({
   const [markUi, setMarkUi] = useState(null); // null = follow props; { bold?, italic?, strike? }
   const [colorUi, setColorUi] = useState(null); // null = follow props; string | false
   const [zoomDraft, setZoomDraft] = useState(() => zoomToFactor(zoom));
+  const [compact, setCompact] = useState(false);
   const rootRef = useRef(null);
   const customTextSwatchRef = useRef(null);
   const customHighlightPickRef = useRef(null);
@@ -126,6 +127,19 @@ export default function FormatToolbar({
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      // Notepad-like: collapse secondary tools when the row gets tight
+      setCompact(root.clientWidth < 720);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    return () => ro.disconnect();
   }, []);
 
   // Drop local override once parent formats match what we clicked
@@ -252,7 +266,10 @@ export default function FormatToolbar({
     !isPresetTextColor(lastCustomTextColor);
 
   return (
-    <div className="format-toolbar-row" ref={rootRef}>
+    <div
+      className={`format-toolbar-row${compact ? " is-compact" : ""}`}
+      ref={rootRef}
+    >
       <div className="toolbar-side toolbar-left">
         <button
           type="button"
@@ -316,46 +333,51 @@ export default function FormatToolbar({
 
         <div className="format-sep" />
 
-        <div className="font-size-group">
-          <select
-            className="font-size-select"
-            title="Font size"
-            value={size}
-            onMouseDown={(e) => e.stopPropagation()}
-            onChange={(e) => onAction("setFontSize", Number(e.target.value))}
-          >
-            {!FONT_SIZES.includes(size) && (
-              <option value={size}>{size}</option>
-            )}
-            {FONT_SIZES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <div className="stepper-stack">
-            <button
-              type="button"
-              className="fmt-btn step-btn"
-              title="Increase font size"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onAction("nudgeFontSize", 1)}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="fmt-btn step-btn"
-              title="Decrease font size"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onAction("nudgeFontSize", -1)}
-            >
-              −
-            </button>
-          </div>
-        </div>
-
-        <div className="format-sep" />
+        {!compact && (
+          <>
+            <div className="font-size-group">
+              <select
+                className="font-size-select"
+                title="Font size"
+                value={size}
+                onMouseDown={(e) => e.stopPropagation()}
+                onChange={(e) =>
+                  onAction("setFontSize", Number(e.target.value))
+                }
+              >
+                {!FONT_SIZES.includes(size) && (
+                  <option value={size}>{size}</option>
+                )}
+                {FONT_SIZES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <div className="stepper-stack">
+                <button
+                  type="button"
+                  className="fmt-btn step-btn"
+                  title="Increase font size"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onAction("nudgeFontSize", 1)}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="fmt-btn step-btn"
+                  title="Decrease font size"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onAction("nudgeFontSize", -1)}
+                >
+                  −
+                </button>
+              </div>
+            </div>
+            <div className="format-sep" />
+          </>
+        )}
 
         <div className="tb-dropdown">
           <button
@@ -390,40 +412,43 @@ export default function FormatToolbar({
           )}
         </div>
 
-        <div className="format-sep" />
-
-        <div className="fmt-cluster">
-          <button
-            type="button"
-            className={`fmt-btn${boldOn ? " active" : ""}`}
-            title="Bold"
-            aria-pressed={boldOn}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => toggleMark("bold")}
-          >
-            <span className="fmt-letter fmt-bold">B</span>
-          </button>
-          <button
-            type="button"
-            className={`fmt-btn${italicOn ? " active" : ""}`}
-            title="Italic"
-            aria-pressed={italicOn}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => toggleMark("italic")}
-          >
-            <span className="fmt-letter fmt-italic">I</span>
-          </button>
-          <button
-            type="button"
-            className={`fmt-btn${strikeOn ? " active" : ""}`}
-            title="Strikethrough"
-            aria-pressed={strikeOn}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => toggleMark("strike")}
-          >
-            <span className="fmt-letter fmt-strike">S</span>
-          </button>
-        </div>
+        {!compact && (
+          <>
+            <div className="format-sep" />
+            <div className="fmt-cluster">
+              <button
+                type="button"
+                className={`fmt-btn${boldOn ? " active" : ""}`}
+                title="Bold"
+                aria-pressed={boldOn}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleMark("bold")}
+              >
+                <span className="fmt-letter fmt-bold">B</span>
+              </button>
+              <button
+                type="button"
+                className={`fmt-btn${italicOn ? " active" : ""}`}
+                title="Italic"
+                aria-pressed={italicOn}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleMark("italic")}
+              >
+                <span className="fmt-letter fmt-italic">I</span>
+              </button>
+              <button
+                type="button"
+                className={`fmt-btn${strikeOn ? " active" : ""}`}
+                title="Strikethrough"
+                aria-pressed={strikeOn}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleMark("strike")}
+              >
+                <span className="fmt-letter fmt-strike">S</span>
+              </button>
+            </div>
+          </>
+        )}
 
         <div className="format-sep" />
 
@@ -515,87 +540,296 @@ export default function FormatToolbar({
 
         <div className="format-sep" />
 
-        <div className="fmt-cluster highlight-cluster">
-          {MAIN_HIGHLIGHTS.map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              className={`fmt-btn highlight-swatch${
-                highlightOn && sameColor(highlightColor, h.color)
-                  ? " active"
-                  : ""
-              }`}
-              title={h.title}
-              style={{ "--swatch": h.color }}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => applyHighlight(h.color)}
-            >
-              <span className="swatch" />
-            </button>
-          ))}
-
-          <button
-            type="button"
-            className={`fmt-btn highlight-swatch no-highlight-btn${highlightOn ? "" : " active"}`}
-            title="No highlight"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={clearHighlight}
-          >
-            <span className="swatch no-swatch" aria-hidden="true">
-              <NoHighlightIcon />
-            </span>
-          </button>
-
-          <div
-            className={`custom-highlight-box${customHighlightActive ? " is-active" : ""}`}
-          >
+        {compact ? (
+          <div className="tb-dropdown">
             <button
               type="button"
-              className={`fmt-btn highlight-swatch custom-main${customHighlightActive ? " active" : ""}`}
-              title={`Custom highlight (${lastCustomHighlight}) — click to apply`}
-              style={{ "--swatch": lastCustomHighlight }}
+              className={`fmt-btn split-btn highlight-drop-btn${highlightOn ? " active" : ""}`}
+              title="Highlight"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => applyHighlight(lastCustomHighlight)}
+              onClick={() => toggle("highlight")}
             >
-              <span className="swatch" />
-            </button>
-            <button
-              ref={customHighlightPickRef}
-              type="button"
-              className="fmt-btn custom-pick"
-              title="Choose custom highlight color"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={openCustomHighlightPicker}
-            >
+              <span
+                className="swatch"
+                style={{
+                  "--swatch": highlightOn
+                    ? highlightColor || lastCustomHighlight
+                    : "transparent",
+                }}
+              />
               <Chevron />
             </button>
+            {openMenu === "highlight" && (
+              <div className="tb-menu color-menu highlight-menu">
+                <div className="tb-menu-grid">
+                  {MAIN_HIGHLIGHTS.map((h) => (
+                    <button
+                      key={h.id}
+                      type="button"
+                      className={`swatch-btn${
+                        highlightOn && sameColor(highlightColor, h.color)
+                          ? " active"
+                          : ""
+                      }`}
+                      title={h.title}
+                      style={{ background: h.color }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        applyHighlight(h.color);
+                        setOpenMenu(null);
+                      }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    className={`swatch-btn${customHighlightActive ? " active" : ""}`}
+                    title={`Custom (${lastCustomHighlight})`}
+                    style={{ background: lastCustomHighlight }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      applyHighlight(lastCustomHighlight);
+                      setOpenMenu(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={`swatch-btn swatch-none${highlightOn ? "" : " active"}`}
+                    title="No highlight"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      clearHighlight();
+                      setOpenMenu(null);
+                    }}
+                  >
+                    <NoHighlightIcon />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="tb-menu-item"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    openCustomHighlightPicker(e);
+                    setOpenMenu(null);
+                  }}
+                >
+                  Custom highlight…
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="fmt-cluster highlight-cluster">
+            {MAIN_HIGHLIGHTS.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                className={`fmt-btn highlight-swatch${
+                  highlightOn && sameColor(highlightColor, h.color)
+                    ? " active"
+                    : ""
+                }`}
+                title={h.title}
+                style={{ "--swatch": h.color }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => applyHighlight(h.color)}
+              >
+                <span className="swatch" />
+              </button>
+            ))}
 
-        <div className="format-sep" />
+            <button
+              type="button"
+              className={`fmt-btn highlight-swatch no-highlight-btn${highlightOn ? "" : " active"}`}
+              title="No highlight"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={clearHighlight}
+            >
+              <span className="swatch no-swatch" aria-hidden="true">
+                <NoHighlightIcon />
+              </span>
+            </button>
 
-        <button
-          type="button"
-          className="fmt-btn"
-          title="Clear formatting"
-          aria-label="Clear formatting"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onAction("clearFormatting")}
-        >
-          <ClearFormatIcon />
-        </button>
+            <div
+              className={`custom-highlight-box${customHighlightActive ? " is-active" : ""}`}
+            >
+              <button
+                type="button"
+                className={`fmt-btn highlight-swatch custom-main${customHighlightActive ? " active" : ""}`}
+                title={`Custom highlight (${lastCustomHighlight}) — click to apply`}
+                style={{ "--swatch": lastCustomHighlight }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => applyHighlight(lastCustomHighlight)}
+              >
+                <span className="swatch" />
+              </button>
+              <button
+                ref={customHighlightPickRef}
+                type="button"
+                className="fmt-btn custom-pick"
+                title="Choose custom highlight color"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openCustomHighlightPicker}
+              >
+                <Chevron />
+              </button>
+            </div>
+          </div>
+        )}
 
-        <button
-          type="button"
-          className={`fmt-btn${findOpen ? " active" : ""}`}
-          title={findOpen ? "Hide find" : "Find"}
-          aria-label={findOpen ? "Hide find" : "Find"}
-          aria-pressed={findOpen}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onAction("find")}
-        >
-          <SearchIcon />
-        </button>
+        {compact ? (
+          <div className="tb-dropdown overflow-drop">
+            <button
+              type="button"
+              className={`fmt-btn${openMenu === "overflow" ? " active" : ""}`}
+              title="More formatting"
+              aria-label="More formatting"
+              aria-expanded={openMenu === "overflow"}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => toggle("overflow")}
+            >
+              <MoreIcon />
+            </button>
+            {openMenu === "overflow" && (
+              <div className="tb-menu overflow-panel">
+                <div className="overflow-toolbar">
+                  <div className="font-size-group">
+                    <select
+                      className="font-size-select"
+                      title="Font size"
+                      value={size}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        onAction("setFontSize", Number(e.target.value))
+                      }
+                    >
+                      {!FONT_SIZES.includes(size) && (
+                        <option value={size}>{size}</option>
+                      )}
+                      {FONT_SIZES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="stepper-stack">
+                      <button
+                        type="button"
+                        className="fmt-btn step-btn"
+                        title="Increase font size"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onAction("nudgeFontSize", 1)}
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="fmt-btn step-btn"
+                        title="Decrease font size"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onAction("nudgeFontSize", -1)}
+                      >
+                        −
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="format-sep" />
+
+                  <div className="fmt-cluster">
+                    <button
+                      type="button"
+                      className={`fmt-btn${boldOn ? " active" : ""}`}
+                      title="Bold"
+                      aria-pressed={boldOn}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => toggleMark("bold")}
+                    >
+                      <span className="fmt-letter fmt-bold">B</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`fmt-btn${italicOn ? " active" : ""}`}
+                      title="Italic"
+                      aria-pressed={italicOn}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => toggleMark("italic")}
+                    >
+                      <span className="fmt-letter fmt-italic">I</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`fmt-btn${strikeOn ? " active" : ""}`}
+                      title="Strikethrough"
+                      aria-pressed={strikeOn}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => toggleMark("strike")}
+                    >
+                      <span className="fmt-letter fmt-strike">S</span>
+                    </button>
+                  </div>
+
+                  <div className="format-sep" />
+
+                  <button
+                    type="button"
+                    className="fmt-btn"
+                    title="Clear formatting"
+                    aria-label="Clear formatting"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onAction("clearFormatting");
+                      setOpenMenu(null);
+                    }}
+                  >
+                    <ClearFormatIcon />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`fmt-btn${findOpen ? " active" : ""}`}
+                    title={findOpen ? "Hide find" : "Find"}
+                    aria-label={findOpen ? "Hide find" : "Find"}
+                    aria-pressed={findOpen}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onAction("find");
+                      setOpenMenu(null);
+                    }}
+                  >
+                    <SearchIcon />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="format-sep" />
+            <button
+              type="button"
+              className="fmt-btn"
+              title="Clear formatting"
+              aria-label="Clear formatting"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onAction("clearFormatting")}
+            >
+              <ClearFormatIcon />
+            </button>
+
+            <button
+              type="button"
+              className={`fmt-btn${findOpen ? " active" : ""}`}
+              title={findOpen ? "Hide find" : "Find"}
+              aria-label={findOpen ? "Hide find" : "Find"}
+              aria-pressed={findOpen}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onAction("find")}
+            >
+              <SearchIcon />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="toolbar-side toolbar-right">
@@ -662,6 +896,16 @@ function Chevron() {
   return (
     <svg className="chevron" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
       <path d="M1.5 2.5 L4 5.5 L6.5 2.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="3.5" cy="8" r="1.3" fill="currentColor" />
+      <circle cx="8" cy="8" r="1.3" fill="currentColor" />
+      <circle cx="12.5" cy="8" r="1.3" fill="currentColor" />
     </svg>
   );
 }
