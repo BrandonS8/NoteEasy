@@ -333,15 +333,13 @@ export default function FormatToolbar({
       </div>
 
       <div className="format-toolbar" role="toolbar" aria-label="Formatting">
-        <StylePicker
-          value={a.docStyle || "body"}
-          onChange={(id) => onAction("setDocStyle", id)}
-        />
-
-        <div className="format-sep" />
-
         {!compact && (
           <>
+            <StylePicker
+              value={a.docStyle || "body"}
+              onChange={(id) => onAction("setDocStyle", id)}
+            />
+            <div className="format-sep" />
             <div className="font-size-group">
               <select
                 className="font-size-select"
@@ -419,43 +417,40 @@ export default function FormatToolbar({
           )}
         </div>
 
-        {!compact && (
-          <>
-            <div className="format-sep" />
-            <div className="fmt-cluster">
-              <button
-                type="button"
-                className={`fmt-btn${boldOn ? " active" : ""}`}
-                title="Bold"
-                aria-pressed={boldOn}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => toggleMark("bold")}
-              >
-                <span className="fmt-letter fmt-bold">B</span>
-              </button>
-              <button
-                type="button"
-                className={`fmt-btn${italicOn ? " active" : ""}`}
-                title="Italic"
-                aria-pressed={italicOn}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => toggleMark("italic")}
-              >
-                <span className="fmt-letter fmt-italic">I</span>
-              </button>
-              <button
-                type="button"
-                className={`fmt-btn${strikeOn ? " active" : ""}`}
-                title="Strikethrough"
-                aria-pressed={strikeOn}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => toggleMark("strike")}
-              >
-                <span className="fmt-letter fmt-strike">S</span>
-              </button>
-            </div>
-          </>
-        )}
+        <div className="format-sep" />
+
+        <div className="fmt-cluster">
+          <button
+            type="button"
+            className={`fmt-btn${boldOn ? " active" : ""}`}
+            title="Bold"
+            aria-pressed={boldOn}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => toggleMark("bold")}
+          >
+            <span className="fmt-letter fmt-bold">B</span>
+          </button>
+          <button
+            type="button"
+            className={`fmt-btn${italicOn ? " active" : ""}`}
+            title="Italic"
+            aria-pressed={italicOn}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => toggleMark("italic")}
+          >
+            <span className="fmt-letter fmt-italic">I</span>
+          </button>
+          <button
+            type="button"
+            className={`fmt-btn${strikeOn ? " active" : ""}`}
+            title="Strikethrough"
+            aria-pressed={strikeOn}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => toggleMark("strike")}
+          >
+            <span className="fmt-letter fmt-strike">S</span>
+          </button>
+        </div>
 
         <div className="format-sep" />
 
@@ -798,38 +793,10 @@ export default function FormatToolbar({
 
                     <div className="format-sep" />
 
-                    <div className="fmt-cluster">
-                      <button
-                        type="button"
-                        className={`fmt-btn${boldOn ? " active" : ""}`}
-                        title="Bold"
-                        aria-pressed={boldOn}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => toggleMark("bold")}
-                      >
-                        <span className="fmt-letter fmt-bold">B</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`fmt-btn${italicOn ? " active" : ""}`}
-                        title="Italic"
-                        aria-pressed={italicOn}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => toggleMark("italic")}
-                      >
-                        <span className="fmt-letter fmt-italic">I</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`fmt-btn${strikeOn ? " active" : ""}`}
-                        title="Strikethrough"
-                        aria-pressed={strikeOn}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => toggleMark("strike")}
-                      >
-                        <span className="fmt-letter fmt-strike">S</span>
-                      </button>
-                    </div>
+                    <StylePicker
+                      value={a.docStyle || "body"}
+                      onChange={(id) => onAction("setDocStyle", id)}
+                    />
 
                     <div className="format-sep" />
 
