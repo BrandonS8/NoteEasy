@@ -37,7 +37,7 @@ export default function App() {
   const [statusBar, setStatusBar] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [fontFamily, setFontFamily] = useState("Consolas");
-  const [fontSize, setFontSize] = useState(14);
+  const [fontSize, setFontSize] = useState(16);
   const [zoom, setZoom] = useState(100);
   const [line, setLine] = useState(1);
   const [column, setColumn] = useState(1);

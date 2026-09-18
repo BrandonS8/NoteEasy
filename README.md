@@ -12,6 +12,16 @@ A small Windows notepad with tabs and text highlighting. Built with [Tauri 2](ht
 - Toolbar that packs into an overflow menu when the window is narrow
 - Save as `.nte` (keeps formatting) or plain `.txt`
 
+## Screenshots
+
+Light mode:
+
+![NoteEasy light mode](docs/screenshot-light.png)
+
+Dark mode:
+
+![NoteEasy dark mode](docs/screenshot-dark.png)
+
 ## Download
 
 Latest Windows builds are on the [Releases](https://github.com/BrandonS8/NoteEasy/releases) page:

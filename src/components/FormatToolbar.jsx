@@ -82,7 +82,7 @@ export default function FormatToolbar({
   onAction,
   active,
   selectionFontSize,
-  baseFontSize = 14,
+  baseFontSize = 16,
   lastCustomHighlight = "#c8e6c9",
   lastCustomTextColor = "#00897b",
   darkMode = false,
@@ -97,6 +97,7 @@ export default function FormatToolbar({
   const [hlUi, setHlUi] = useState(null); // null = follow props; { on, color }
   const [markUi, setMarkUi] = useState(null); // null = follow props; { bold?, italic?, strike? }
   const [colorUi, setColorUi] = useState(null); // null = follow props; string | false
+  const [brushColor, setBrushColor] = useState(lastCustomTextColor);
   const [compact, setCompact] = useState(false);
   const [overflowPos, setOverflowPos] = useState(null);
   const rootRef = useRef(null);
@@ -189,6 +190,10 @@ export default function FormatToolbar({
     if (sameColor(a.textColor, colorUi)) setColorUi(null);
   }, [a.textColor, colorUi]);
 
+  useEffect(() => {
+    if (lastCustomTextColor) setBrushColor(lastCustomTextColor);
+  }, [lastCustomTextColor]);
+
   function toggleMark(action) {
     setMarkUi((prev) => {
       const base = {
@@ -204,8 +209,10 @@ export default function FormatToolbar({
 
   function applyTextColor(color) {
     setColorUi(color || false);
-    if (color) onAction("setTextColor", color);
-    else onAction("clearTextColor");
+    if (color) {
+      setBrushColor(color);
+      onAction("setTextColor", color);
+    } else onAction("clearTextColor");
     setOpenMenu(null);
   }
 
@@ -250,9 +257,10 @@ export default function FormatToolbar({
       ? darkMode
         ? "#e8e8e8"
         : "#000000"
-      : colorUi || a.textColor || (darkMode ? "#e8e8e8" : "#000000");
+      : colorUi || a.textColor || brushColor || (darkMode ? "#e8e8e8" : "#000000");
   const activeTextColor =
     colorUi === false ? null : colorUi || a.textColor || null;
+  const applyColor = activeTextColor || brushColor || lastCustomTextColor;
   const highlightOn = hlUi ? hlUi.on : !!a.highlight;
   const highlightColor = hlUi ? hlUi.color : a.highlightColor;
   const boldOn = markUi && "bold" in markUi ? !!markUi.bold : !!a.bold;
@@ -459,15 +467,9 @@ export default function FormatToolbar({
             <button
               type="button"
               className="fmt-btn custom-main color-letter-btn"
-              title={
-                activeTextColor
-                  ? `Font color (${activeTextColor})`
-                  : `Font color (${lastCustomTextColor})`
-              }
+              title={`Font color (${applyColor})`}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() =>
-                applyTextColor(activeTextColor || lastCustomTextColor)
-              }
+              onClick={() => applyTextColor(applyColor)}
             >
               <span
                 className="color-letter-swatch"

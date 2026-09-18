@@ -30,13 +30,13 @@ const STYLE_EXTRAS = {
 /** Default document styles (Body inherits the app font size when fontSize is null). */
 export function createDefaultDocStyles() {
   return {
-    title: { fontSize: 28, bold: true, italic: false, ...STYLE_EXTRAS },
-    subtitle: { fontSize: 18, bold: false, italic: true, ...STYLE_EXTRAS },
-    heading1: { fontSize: 22, bold: true, italic: false, ...STYLE_EXTRAS },
-    heading2: { fontSize: 18, bold: true, italic: false, ...STYLE_EXTRAS },
-    heading3: { fontSize: 16, bold: true, italic: false, ...STYLE_EXTRAS },
-    heading4: { fontSize: 14, bold: true, italic: false, ...STYLE_EXTRAS },
-    heading5: { fontSize: 12, bold: true, italic: false, ...STYLE_EXTRAS },
+    title: { fontSize: 36, bold: true, italic: false, ...STYLE_EXTRAS },
+    subtitle: { fontSize: 22, bold: false, italic: true, ...STYLE_EXTRAS },
+    heading1: { fontSize: 28, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading2: { fontSize: 24, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading3: { fontSize: 20, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading4: { fontSize: 18, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading5: { fontSize: 16, bold: true, italic: false, ...STYLE_EXTRAS },
     body: { fontSize: null, bold: false, italic: false, ...STYLE_EXTRAS },
   };
 }

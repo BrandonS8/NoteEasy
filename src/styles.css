@@ -293,11 +293,9 @@ body,
 
 .fmt-cluster .fmt-letter.fmt-strike {
   font-weight: 400;
-}
-
-.fmt-btn.active .fmt-letter.fmt-strike {
   text-decoration: line-through;
   text-decoration-thickness: 1.25px;
+  text-decoration-color: currentColor;
 }
 
 .fmt-btn.highlight-swatch .swatch {
@@ -715,7 +713,7 @@ body,
   color: var(--editor-fg);
   background: var(--editor-bg);
   font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
-  font-size: var(--editor-font-size, 14px);
+  font-size: var(--editor-font-size, 16px);
   line-height: 1.25;
   white-space: pre-wrap;
   word-break: break-word;
