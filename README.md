@@ -20,6 +20,8 @@ Session data (open tabs, formatting, window size, dark mode) is stored in:
 
 On most PCs that’s `C:\Users\<you>\AppData\Roaming\com.noteeasy.app\session.json`. Delete that file to reset the session.
 
+Notes with formatting default to `.nte` when you save. The MSI / NSIS installers register `.nte` with NoteEasy so Windows can open those files with the app (Open with / double-click). The portable `.exe` does not add that association by itself.
+
 ## Screenshots
 
 Light mode:

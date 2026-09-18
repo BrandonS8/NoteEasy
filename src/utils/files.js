@@ -7,10 +7,17 @@ import {
   titleFromPath,
 } from "../state/tabs.js";
 
-const FILTERS = [
+const OPEN_FILTERS = [
   { name: "Text / NoteEasy", extensions: ["txt", "nte", "text", "log"] },
   { name: "All Files", extensions: ["*"] },
 ];
+
+function saveFilters(preferRich) {
+  const noteEasy = { name: "NoteEasy Note", extensions: ["nte"] };
+  const plain = { name: "Plain Text", extensions: ["txt", "text", "log"] };
+  const all = { name: "All Files", extensions: ["*"] };
+  return preferRich ? [noteEasy, plain, all] : [plain, noteEasy, all];
+}
 
 /** Force a visible arrow cursor before native OS dialogs (WebView I-beam often vanishes on them). */
 export async function prepareForNativeDialog() {
@@ -43,19 +50,19 @@ export async function pickOpenPath() {
     return await open({
       multiple: false,
       directory: false,
-      filters: FILTERS,
+      filters: OPEN_FILTERS,
     });
   } finally {
     restoreAfterNativeDialog();
   }
 }
 
-export async function pickSavePath(defaultPath) {
+export async function pickSavePath(defaultPath, { preferRich = false } = {}) {
   await prepareForNativeDialog();
   try {
     return await save({
       defaultPath: defaultPath || undefined,
-      filters: FILTERS,
+      filters: saveFilters(preferRich),
     });
   } finally {
     restoreAfterNativeDialog();

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-take-startup-files"
+description = "Allow reading file paths passed on the command line (file associations)."
+commands.allow = ["take_startup_files"]

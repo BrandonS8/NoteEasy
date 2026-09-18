@@ -34,6 +34,7 @@
       "identifier": "fs:scope",
       "allow": [{ "path": "**" }]
     },
-    "store:default"
+    "store:default",
+    "allow-take-startup-files"
   ]
 }

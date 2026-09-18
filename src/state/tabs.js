@@ -37,7 +37,7 @@ export function sanitizeFileStem(raw, { maxLen = 80 } = {}) {
 }
 
 /** Prefer first non-empty line of text as save default (Untitled → first line). */
-export function suggestedSaveName(tab, plainText) {
+export function suggestedSaveName(tab, plainText, { rich = false } = {}) {
   if (tab?.path) return tab.path;
   const text = String(plainText ?? "");
   const firstLine =
@@ -50,7 +50,30 @@ export function suggestedSaveName(tab, plainText) {
     sanitizeFileStem(tab?.title) ||
     "Untitled";
   if (/\.(txt|nte|text|log)$/i.test(stem)) return stem;
-  return `${stem}.txt`;
+  return `${stem}.${rich ? "nte" : "txt"}`;
+}
+
+/** True when HTML has marks/styles that plain .txt would lose. */
+export function htmlHasRichFormatting(html) {
+  if (!html) return false;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  if (
+    doc.querySelector(
+      "strong, b, em, i, s, del, strike, mark, ul, ol, li, h1, h2, h3, h4, h5, h6",
+    )
+  ) {
+    return true;
+  }
+  if (
+    doc.querySelector('p[data-doc-style]:not([data-doc-style="body"])')
+  ) {
+    return true;
+  }
+  for (const el of doc.querySelectorAll("[style]")) {
+    const style = el.getAttribute("style") || "";
+    if (/color\s*:|font-size\s*:|background/i.test(style)) return true;
+  }
+  return false;
 }
 
 export function htmlToPlainText(html) {

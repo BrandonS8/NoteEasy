@@ -9,7 +9,8 @@ import FormatToolbar, {
 } from "./components/FormatToolbar.jsx";
 import EditorContextMenu from "./components/EditorContextMenu.jsx";
 import NotepadEditor from "./editor/NotepadEditor.jsx";
-import { createTab, titleFromPath, suggestedSaveName, htmlToPlainText } from "./state/tabs.js";
+import { invoke } from "@tauri-apps/api/core";
+import { createTab, titleFromPath, suggestedSaveName, htmlToPlainText, htmlHasRichFormatting } from "./state/tabs.js";
 import { mergeDocStyles, STYLE_IDS } from "./state/docStyles.js";
 import {
   captureWindowState,
@@ -265,22 +266,23 @@ export default function App() {
       const tab = tabsRef.current.find((t) => t.id === tabId);
       if (!tab) return false;
 
+      const html =
+        tabId === activeIdRef.current
+          ? editorRef.current?.getHTML?.() ?? tab.contentHtml
+          : tab.contentHtml;
+
       let filePath = tab.path;
       if (saveAs || !filePath) {
         const plain =
           tabId === activeIdRef.current
             ? editorRef.current?.getText?.() ??
-              htmlToPlainText(tab.contentHtml)
-            : htmlToPlainText(tab.contentHtml);
-        const defaultName = suggestedSaveName(tab, plain);
-        filePath = await pickSavePath(defaultName);
+              htmlToPlainText(html)
+            : htmlToPlainText(html);
+        const rich = htmlHasRichFormatting(html);
+        const defaultName = suggestedSaveName(tab, plain, { rich });
+        filePath = await pickSavePath(defaultName, { preferRich: rich });
         if (!filePath) return false;
       }
-
-      const html =
-        tabId === activeIdRef.current
-          ? editorRef.current?.getHTML?.() ?? tab.contentHtml
-          : tab.contentHtml;
 
       await writeDocument(filePath, html, tab.docStyles);
       updateTab(tabId, {
@@ -379,8 +381,7 @@ export default function App() {
     setFindMode(null);
   }, [flushActiveHtml, saveTab]);
 
-  const openFile = useCallback(async () => {
-    const filePath = await pickOpenPath();
+  const openPath = useCallback(async (filePath) => {
     if (!filePath) return;
     const existing = tabsRef.current.find((t) => t.path === filePath);
     if (existing) {
@@ -396,9 +397,46 @@ export default function App() {
       encoding: doc.encoding,
       docStyles: doc.docStyles || undefined,
     });
-    setTabs((prev) => [...prev, tab]);
+    setTabs((prev) => {
+      // Replace a single empty Untitled tab so double-click open feels clean
+      if (
+        prev.length === 1 &&
+        !prev[0].path &&
+        !prev[0].dirty &&
+        htmlToPlainText(prev[0].contentHtml).trim() === ""
+      ) {
+        return [tab];
+      }
+      return [...prev, tab];
+    });
     setActiveId(tab.id);
   }, []);
+
+  const openFile = useCallback(async () => {
+    const filePath = await pickOpenPath();
+    if (!filePath) return;
+    await openPath(filePath);
+  }, [openPath]);
+
+  // Open files from Explorer (file association / Open with)
+  useEffect(() => {
+    if (!ready || !isTauri()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const paths = await invoke("take_startup_files");
+        if (cancelled || !Array.isArray(paths) || !paths.length) return;
+        for (const p of paths) {
+          await openPath(p);
+        }
+      } catch (err) {
+        console.error("Startup file open failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, openPath]);
 
   const onEditorUpdate = useCallback(
     (html) => {
