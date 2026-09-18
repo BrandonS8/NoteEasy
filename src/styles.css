@@ -89,21 +89,35 @@ body,
 }
 
 .format-toolbar-row.is-compact {
-  gap: 4px;
-  padding: 4px 6px;
-}
-
-.format-toolbar-row.is-compact .format-toolbar {
   justify-content: flex-start;
-  overflow: hidden;
+  gap: 3px;
+  padding: 4px 6px;
 }
 
 .format-toolbar-row.is-compact .toolbar-left {
   z-index: 2;
+  margin-right: 0;
+}
+
+.format-toolbar-row.is-compact .format-toolbar {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  gap: 2px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .format-toolbar-row.is-compact .format-sep {
-  margin: 0 2px;
+  margin: 0 1px;
+  flex-shrink: 0;
+}
+
+.format-toolbar-row.is-compact .overflow-drop {
+  margin-left: 0;
+}
+
+.format-toolbar-row.is-compact .fmt-cluster {
+  gap: 0;
 }
 
 .format-toolbar {
