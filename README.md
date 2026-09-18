@@ -1,64 +1,53 @@
 # NoteEasy
 
-A fast, lightweight notepad for Windows — tabs, highlighting, and a clean Notepad-style chrome, without the Electron bloat.
+A small Windows notepad with tabs and text highlighting. Built with [Tauri 2](https://v2.tauri.app/), React, and [TipTap](https://tiptap.dev/), so it uses WebView2 instead of shipping a whole browser.
 
-Built with [Tauri 2](https://v2.tauri.app/) + React + [TipTap](https://tiptap.dev/). Uses the system WebView2 runtime, so installs stay small and snappy.
+## Features
 
-## Why NoteEasy?
-
-Classic Notepad is great until you need more than plain text. NoteEasy keeps that familiar feel and adds the bits you actually use:
-
-- **Tabs** — keep several notes open; session restores when you reopen the app
-- **Inline highlight** — yellow, blue, pink, or a custom color, like a real highlighter
-- **Rich basics** — bold, italic, strikethrough, font color, lists, paragraph styles
-- **Find & replace** — search without leaving the editor
-- **Dark mode** — one-click moon toggle, remembered next launch
-- **Compact toolbar** — shrink the window and tools fold into a tidy overflow menu
-- **`.nte` files** — save notes with formatting; plain `.txt` when you want portable text
+- Multiple tabs, restored the next time you open the app
+- Highlight colors (yellow, blue, pink, or pick your own)
+- Bold, italic, strikethrough, font color, lists, and paragraph styles
+- Find and replace
+- Dark mode that sticks between sessions
+- Toolbar that packs into an overflow menu when the window is narrow
+- Save as `.nte` (keeps formatting) or plain `.txt`
 
 ## Download
 
-Grab the latest Windows build from the [Releases](https://github.com/BrandonS8/NoteEasy/releases) page:
+Latest Windows builds are on the [Releases](https://github.com/BrandonS8/NoteEasy/releases) page:
 
-| Asset | What it is |
+| File | Notes |
 | --- | --- |
-| **`.msi`** | Windows installer (recommended for most people) |
-| **`.exe` (NSIS)** | Alternate installer |
-| **Portable `.exe`** | Run without installing (from the release binaries) |
+| `.msi` | Installer (easiest option) |
+| NSIS `.exe` | Alternate installer |
+| Portable `.exe` | No install, just run it |
 
-Windows 10/11 with [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (usually already installed).
-
-## Screenshots
-
-Frameless tabs, centered formatting toolbar, status bar with zoom — sized for everyday notes, not a dashboard.
+Needs Windows 10/11 and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (already on most PCs).
 
 ## Develop
 
-**Requirements:** Node.js 18+, Rust via [rustup](https://rustup.rs/), Windows WebView2.
+You need Node.js 18+, Rust ([rustup](https://rustup.rs/)), and WebView2.
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-If your C: drive is tight on space, point Cargo elsewhere first:
+Optional: put Cargo build output on another drive if C: is full.
 
 ```powershell
 $env:CARGO_TARGET_DIR = "D:\cargo-target\NoteEasy"
 $env:CARGO_HOME = "D:\cargo-home"
 ```
 
-## Build a release
+## Build
 
 ```bash
 npm run tauri build
 ```
 
-Installers land under your Cargo target dir, typically:
-
-`src-tauri/target/release/bundle/`  
-(or `$env:CARGO_TARGET_DIR/release/bundle/` if you set that)
+Installers show up under `release/bundle/` in your Cargo target directory (`src-tauri/target` by default, or whatever you set in `CARGO_TARGET_DIR`).
 
 ## License
 
-MIT — use it, fork it, ship it with your notes.
+MIT
