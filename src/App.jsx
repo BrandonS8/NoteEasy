@@ -680,7 +680,6 @@ export default function App() {
         lastCustomHighlight={lastCustomHighlight}
         lastCustomTextColor={lastCustomTextColor}
         darkMode={darkMode}
-        zoom={zoom}
         findOpen={!!findMode}
         textColorInputRef={textColorInputRef}
         highlightColorInputRef={highlightColorInputRef}
@@ -762,6 +761,7 @@ export default function App() {
         visible={statusBar}
         words={words}
         characters={characters}
+        onZoomChange={(z) => handleAction("setZoom", z)}
       />
       {ctxMenu && (
         <EditorContextMenu

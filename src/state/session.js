@@ -2,7 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const STORE_FILE = "session.json";
-const MIN_W = 280;
+const MIN_W = 322;
 const MIN_H = 180;
 const DEFAULT_W = 900;
 const DEFAULT_H = 640;

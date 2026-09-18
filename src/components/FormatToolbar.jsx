@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import StylePicker from "./StylePicker.jsx";
 
 const MAIN_HIGHLIGHTS = [
@@ -44,23 +45,6 @@ function isPresetTextColor(color) {
   return TEXT_COLORS.some((c) => sameColor(c.color, color));
 }
 
-function zoomToFactor(zoom) {
-  const n = Number(zoom);
-  if (!Number.isFinite(n)) return "1.0x";
-  const factor = n / 100;
-  return `${factor.toFixed(1)}x`;
-}
-
-function parseZoomDraft(draft) {
-  const raw = String(draft).trim().replace(/x$/i, "").replace(/%$/, "");
-  if (!raw) return null;
-  const n = Number.parseFloat(raw);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  // Allow typing percent (e.g. 110) or factor (e.g. 1.1)
-  if (n > 10) return Math.round(n);
-  return Math.round(n * 100);
-}
-
 /** Open the native color picker anchored to a toolbar/menu control. */
 export function openNativeColorPicker(input, anchorEl, hex) {
   if (!input) return;
@@ -93,7 +77,7 @@ export function openNativeColorPicker(input, anchorEl, hex) {
   input.addEventListener("change", done);
 }
 
-/** Main toolbar: file actions, formatting, find, zoom, dark mode. */
+/** Main toolbar: file actions, formatting, find, dark mode. */
 export default function FormatToolbar({
   onAction,
   active,
@@ -102,7 +86,6 @@ export default function FormatToolbar({
   lastCustomHighlight = "#c8e6c9",
   lastCustomTextColor = "#00897b",
   darkMode = false,
-  zoom = 100,
   findOpen = false,
   textColorInputRef,
   highlightColorInputRef,
@@ -114,15 +97,19 @@ export default function FormatToolbar({
   const [hlUi, setHlUi] = useState(null); // null = follow props; { on, color }
   const [markUi, setMarkUi] = useState(null); // null = follow props; { bold?, italic?, strike? }
   const [colorUi, setColorUi] = useState(null); // null = follow props; string | false
-  const [zoomDraft, setZoomDraft] = useState(() => zoomToFactor(zoom));
   const [compact, setCompact] = useState(false);
+  const [overflowPos, setOverflowPos] = useState(null);
   const rootRef = useRef(null);
   const customTextSwatchRef = useRef(null);
   const customHighlightPickRef = useRef(null);
+  const overflowBtnRef = useRef(null);
+  const overflowPanelRef = useRef(null);
 
   useEffect(() => {
     function onDoc(e) {
       if (e.target?.closest?.(".sr-color-input")) return;
+      if (e.target?.closest?.(".overflow-panel-fixed")) return;
+      if (e.target?.closest?.(".status-zoom")) return;
       if (!rootRef.current?.contains(e.target)) setOpenMenu(null);
     }
     document.addEventListener("mousedown", onDoc);
@@ -141,6 +128,41 @@ export default function FormatToolbar({
     ro.observe(root);
     return () => ro.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    if (openMenu !== "overflow") {
+      setOverflowPos(null);
+      return;
+    }
+    const btn = overflowBtnRef.current;
+    if (!btn) return;
+
+    function place() {
+      const r = btn.getBoundingClientRect();
+      const pad = 8;
+      const width = Math.min(440, Math.max(280, window.innerWidth - pad * 2));
+      let left = Math.round(r.right - width);
+      if (left < pad) left = pad;
+      if (left + width > window.innerWidth - pad) {
+        left = Math.max(pad, window.innerWidth - width - pad);
+      }
+      let top = Math.round(r.bottom + 6);
+      const panelH = overflowPanelRef.current?.offsetHeight || 56;
+      if (top + panelH > window.innerHeight - pad) {
+        top = Math.max(pad, Math.round(r.top - panelH - 6));
+      }
+      setOverflowPos({ left, top, width });
+    }
+
+    place();
+    // Re-measure after paint so height is accurate
+    const id = requestAnimationFrame(place);
+    window.addEventListener("resize", place);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", place);
+    };
+  }, [openMenu]);
 
   // Drop local override once parent formats match what we clicked
   useEffect(() => {
@@ -166,10 +188,6 @@ export default function FormatToolbar({
     }
     if (sameColor(a.textColor, colorUi)) setColorUi(null);
   }, [a.textColor, colorUi]);
-
-  useEffect(() => {
-    setZoomDraft(zoomToFactor(zoom));
-  }, [zoom]);
 
   function toggleMark(action) {
     setMarkUi((prev) => {
@@ -227,19 +245,6 @@ export default function FormatToolbar({
     );
   }
 
-  function commitZoom() {
-    const percent = parseZoomDraft(zoomDraft);
-    if (percent == null) {
-      setZoomDraft(zoomToFactor(zoom));
-      return;
-    }
-    onAction("setZoom", percent);
-  }
-
-  const textColor =
-    colorUi === false
-      ? "#000000"
-      : colorUi || a.textColor || "#000000";
   const displayColor =
     colorUi === false
       ? darkMode
@@ -542,23 +547,48 @@ export default function FormatToolbar({
 
         {compact ? (
           <div className="tb-dropdown">
-            <button
-              type="button"
-              className={`fmt-btn split-btn highlight-drop-btn${highlightOn ? " active" : ""}`}
-              title="Highlight"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => toggle("highlight")}
+            <div
+              className={`custom-highlight-box highlight-split${
+                highlightOn ? " is-active" : ""
+              }`}
             >
-              <span
-                className="swatch"
+              <button
+                type="button"
+                className={`fmt-btn highlight-swatch custom-main${
+                  highlightOn ? " active" : ""
+                }`}
+                title="Highlight"
                 style={{
                   "--swatch": highlightOn
                     ? highlightColor || lastCustomHighlight
-                    : "transparent",
+                    : "var(--bg-elevated)",
                 }}
-              />
-              <Chevron />
-            </button>
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (highlightOn) {
+                    applyHighlight(highlightColor || lastCustomHighlight);
+                  } else {
+                    applyHighlight(lastCustomHighlight);
+                  }
+                }}
+              >
+                <span
+                  className={`swatch${highlightOn ? "" : " no-swatch"}`}
+                  aria-hidden="true"
+                >
+                  {!highlightOn && <NoHighlightIcon />}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="fmt-btn custom-pick"
+                title="Highlight options"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggle("highlight")}
+              >
+                <Chevron />
+              </button>
+            </div>
             {openMenu === "highlight" && (
               <div className="tb-menu color-menu highlight-menu">
                 <div className="tb-menu-grid">
@@ -680,6 +710,7 @@ export default function FormatToolbar({
         {compact ? (
           <div className="tb-dropdown overflow-drop">
             <button
+              ref={overflowBtnRef}
               type="button"
               className={`fmt-btn${openMenu === "overflow" ? " active" : ""}`}
               title="More formatting"
@@ -690,118 +721,133 @@ export default function FormatToolbar({
             >
               <MoreIcon />
             </button>
-            {openMenu === "overflow" && (
-              <div className="tb-menu overflow-panel">
-                <div className="overflow-toolbar">
-                  <div className="font-size-group">
-                    <select
-                      className="font-size-select"
-                      title="Font size"
-                      value={size}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onChange={(e) =>
-                        onAction("setFontSize", Number(e.target.value))
-                      }
-                    >
-                      {!FONT_SIZES.includes(size) && (
-                        <option value={size}>{size}</option>
-                      )}
-                      {FONT_SIZES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="stepper-stack">
+            {openMenu === "overflow" &&
+              createPortal(
+                <div
+                  ref={overflowPanelRef}
+                  className="tb-menu overflow-panel overflow-panel-fixed"
+                  style={
+                    overflowPos
+                      ? {
+                          left: overflowPos.left,
+                          top: overflowPos.top,
+                          width: overflowPos.width,
+                        }
+                      : { visibility: "hidden", left: 0, top: 0 }
+                  }
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <div className="overflow-toolbar">
+                    <div className="font-size-group">
+                      <select
+                        className="font-size-select"
+                        title="Font size"
+                        value={size}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onChange={(e) =>
+                          onAction("setFontSize", Number(e.target.value))
+                        }
+                      >
+                        {!FONT_SIZES.includes(size) && (
+                          <option value={size}>{size}</option>
+                        )}
+                        {FONT_SIZES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="stepper-stack">
+                        <button
+                          type="button"
+                          className="fmt-btn step-btn"
+                          title="Increase font size"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => onAction("nudgeFontSize", 1)}
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          className="fmt-btn step-btn"
+                          title="Decrease font size"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => onAction("nudgeFontSize", -1)}
+                        >
+                          −
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="format-sep" />
+
+                    <div className="fmt-cluster">
                       <button
                         type="button"
-                        className="fmt-btn step-btn"
-                        title="Increase font size"
+                        className={`fmt-btn${boldOn ? " active" : ""}`}
+                        title="Bold"
+                        aria-pressed={boldOn}
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => onAction("nudgeFontSize", 1)}
+                        onClick={() => toggleMark("bold")}
                       >
-                        +
+                        <span className="fmt-letter fmt-bold">B</span>
                       </button>
                       <button
                         type="button"
-                        className="fmt-btn step-btn"
-                        title="Decrease font size"
+                        className={`fmt-btn${italicOn ? " active" : ""}`}
+                        title="Italic"
+                        aria-pressed={italicOn}
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => onAction("nudgeFontSize", -1)}
+                        onClick={() => toggleMark("italic")}
                       >
-                        −
+                        <span className="fmt-letter fmt-italic">I</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`fmt-btn${strikeOn ? " active" : ""}`}
+                        title="Strikethrough"
+                        aria-pressed={strikeOn}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => toggleMark("strike")}
+                      >
+                        <span className="fmt-letter fmt-strike">S</span>
                       </button>
                     </div>
-                  </div>
 
-                  <div className="format-sep" />
+                    <div className="format-sep" />
 
-                  <div className="fmt-cluster">
                     <button
                       type="button"
-                      className={`fmt-btn${boldOn ? " active" : ""}`}
-                      title="Bold"
-                      aria-pressed={boldOn}
+                      className="fmt-btn"
+                      title="Clear formatting"
+                      aria-label="Clear formatting"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => toggleMark("bold")}
+                      onClick={() => {
+                        onAction("clearFormatting");
+                        setOpenMenu(null);
+                      }}
                     >
-                      <span className="fmt-letter fmt-bold">B</span>
+                      <ClearFormatIcon />
                     </button>
+
                     <button
                       type="button"
-                      className={`fmt-btn${italicOn ? " active" : ""}`}
-                      title="Italic"
-                      aria-pressed={italicOn}
+                      className={`fmt-btn${findOpen ? " active" : ""}`}
+                      title={findOpen ? "Hide find" : "Find"}
+                      aria-label={findOpen ? "Hide find" : "Find"}
+                      aria-pressed={findOpen}
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => toggleMark("italic")}
+                      onClick={() => {
+                        onAction("find");
+                        setOpenMenu(null);
+                      }}
                     >
-                      <span className="fmt-letter fmt-italic">I</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`fmt-btn${strikeOn ? " active" : ""}`}
-                      title="Strikethrough"
-                      aria-pressed={strikeOn}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => toggleMark("strike")}
-                    >
-                      <span className="fmt-letter fmt-strike">S</span>
+                      <SearchIcon />
                     </button>
                   </div>
-
-                  <div className="format-sep" />
-
-                  <button
-                    type="button"
-                    className="fmt-btn"
-                    title="Clear formatting"
-                    aria-label="Clear formatting"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onAction("clearFormatting");
-                      setOpenMenu(null);
-                    }}
-                  >
-                    <ClearFormatIcon />
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`fmt-btn${findOpen ? " active" : ""}`}
-                    title={findOpen ? "Hide find" : "Find"}
-                    aria-label={findOpen ? "Hide find" : "Find"}
-                    aria-pressed={findOpen}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onAction("find");
-                      setOpenMenu(null);
-                    }}
-                  >
-                    <SearchIcon />
-                  </button>
-                </div>
-              </div>
-            )}
+                </div>,
+                document.body,
+              )}
           </div>
         ) : (
           <>
@@ -833,50 +879,6 @@ export default function FormatToolbar({
       </div>
 
       <div className="toolbar-side toolbar-right">
-        <div className="zoom-group font-size-group" title="Page zoom">
-          <ZoomIcon />
-          <input
-            className="zoom-input"
-            title="Zoom (e.g. 1.0x or 100%)"
-            aria-label="Zoom"
-            value={zoomDraft}
-            onMouseDown={(e) => e.stopPropagation()}
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => setZoomDraft(e.target.value)}
-            onBlur={commitZoom}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                commitZoom();
-                e.currentTarget.blur();
-              } else if (e.key === "Escape") {
-                setZoomDraft(zoomToFactor(zoom));
-                e.currentTarget.blur();
-              }
-            }}
-          />
-          <div className="stepper-stack">
-            <button
-              type="button"
-              className="fmt-btn step-btn"
-              title="Zoom in"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onAction("zoomIn")}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="fmt-btn step-btn"
-              title="Zoom out"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onAction("zoomOut")}
-            >
-              −
-            </button>
-          </div>
-        </div>
-
         <button
           type="button"
           className="fmt-btn theme-btn"
@@ -951,27 +953,6 @@ function SearchIcon() {
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
       <circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.4" />
       <path d="M10.2 10.2 L13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ZoomIcon() {
-  return (
-    <svg
-      className="zoom-icon"
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-    >
-      <circle cx="6.5" cy="6.5" r="4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <path
-        d="M9.4 9.4 L13 13"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <path d="M6.5 4.6 v3.8 M4.6 6.5 h3.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   );
 }

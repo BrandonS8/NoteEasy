@@ -114,44 +114,53 @@ export default function TabBar({
 
   return (
     <div className="titlebar tab-bar" role="tablist" data-tauri-drag-region>
-      {tabs.map((tab) => (
-        <div
-          key={tab.id}
-          className={`tab${tab.id === activeId ? " active" : ""}`}
-          role="tab"
-          aria-selected={tab.id === activeId}
-          onClick={() => onSelect(tab.id)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
-          }}
-          onMouseDown={(e) => {
-            if (e.button === 1) {
-              e.preventDefault();
-              onClose(tab.id);
-            }
-          }}
-        >
-          <span className="tab-title">
-            {tab.dirty ? "*" : ""}
-            {tab.title}
-          </span>
-          <button
-            type="button"
-            className="tab-close"
-            title="Close tab"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose(tab.id);
-            }}
-          >
-            ×
-          </button>
+      <div className="tab-strip">
+        <div className="tab-scroll">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`tab${tab.id === activeId ? " active" : ""}`}
+              role="tab"
+              aria-selected={tab.id === activeId}
+              onClick={() => onSelect(tab.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
+              }}
+              onMouseDown={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  onClose(tab.id);
+                }
+              }}
+            >
+              <span className="tab-title">
+                {tab.dirty ? "*" : ""}
+                {tab.title}
+              </span>
+              <button
+                type="button"
+                className="tab-close"
+                title="Close tab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose(tab.id);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
-      <button type="button" className="tab-new" title="New tab" onClick={onNew}>
-        +
-      </button>
+        <button
+          type="button"
+          className="tab-new"
+          title="New tab"
+          onClick={onNew}
+        >
+          +
+        </button>
+      </div>
 
       <div className="titlebar-spacer" data-tauri-drag-region />
 
