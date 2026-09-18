@@ -2,6 +2,8 @@
 
 A small Windows notepad with tabs and text highlighting. Built with [Tauri 2](https://v2.tauri.app/), React, and [TipTap](https://tiptap.dev/), so it uses WebView2 instead of shipping a whole browser.
 
+I just wanted highlighting in the regular notepad app. So I made my own notepad app quickly. I did use AI to do a lot of the tedious coding and figure out how Tauri actually works because their docs are...lacking. But it's actually quite performant.
+
 ## Features
 
 - Multiple tabs with session restore (tabs and formatting come back when you reopen the app)
