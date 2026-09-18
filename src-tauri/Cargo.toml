@@ -1,6 +1,6 @@
 [package]
 name = "noteeasy"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simple Windows notepad with text highlighting"
 authors = ["you"]
 edition = "2021"
