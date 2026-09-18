@@ -269,6 +269,22 @@ body,
   background: var(--swatch, #ffeb3b);
   border: 1px solid rgba(0, 0, 0, 0.2);
   display: block;
+  box-sizing: border-box;
+}
+
+.fmt-btn.highlight-swatch .swatch.no-swatch {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.fmt-btn.highlight-swatch .swatch.no-swatch svg {
+  width: 15px;
+  height: 15px;
+  display: block;
 }
 
 .font-size-group {
@@ -847,14 +863,19 @@ body,
   border-radius: 0 4px 4px 0;
 }
 
-.highlight-cluster .fmt-btn.highlight-swatch {
-  width: 30px;
-  height: 30px;
+.highlight-cluster {
+  align-items: center;
 }
 
+.highlight-cluster .fmt-btn.highlight-swatch,
 .highlight-cluster .fmt-btn.no-highlight-btn {
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .highlight-cluster .fmt-btn.active::after {

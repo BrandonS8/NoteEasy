@@ -372,11 +372,38 @@ const NotepadEditor = forwardRef(function NotepadEditor(
         }
         return true;
       },
-      setFontSize: (size) => editor?.chain().focus().setFontSize(size).run(),
-      nudgeFontSize: (delta) =>
-        editor?.chain().focus().nudgeFontSize(delta).run(),
-      setTextColor: (color) => editor?.chain().focus().setColor(color).run(),
-      clearTextColor: () => editor?.chain().focus().unsetColor().run(),
+      setFontSize: (size) => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().setFontSize(size).run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
+      nudgeFontSize: (delta) => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().nudgeFontSize(delta).run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
+      setTextColor: (color) => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().setColor(color).run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
+      clearTextColor: () => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().unsetColor().run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
       setDocStyle: (styleId) => {
         if (!editor) return false;
         const id = styleId || "body";

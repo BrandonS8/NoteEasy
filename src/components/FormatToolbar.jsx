@@ -113,6 +113,7 @@ export default function FormatToolbar({
   // Local highlight UI so clicks update instantly (editor format sync can lag).
   const [hlUi, setHlUi] = useState(null); // null = follow props; { on, color }
   const [markUi, setMarkUi] = useState(null); // null = follow props; { bold?, italic?, strike? }
+  const [colorUi, setColorUi] = useState(null); // null = follow props; string | false
   const [zoomDraft, setZoomDraft] = useState(() => zoomToFactor(zoom));
   const rootRef = useRef(null);
   const customTextSwatchRef = useRef(null);
@@ -144,6 +145,15 @@ export default function FormatToolbar({
   }, [a.bold, a.italic, a.strike, markUi]);
 
   useEffect(() => {
+    if (colorUi === null) return;
+    if (colorUi === false) {
+      if (!a.textColor) setColorUi(null);
+      return;
+    }
+    if (sameColor(a.textColor, colorUi)) setColorUi(null);
+  }, [a.textColor, colorUi]);
+
+  useEffect(() => {
     setZoomDraft(zoomToFactor(zoom));
   }, [zoom]);
 
@@ -158,6 +168,13 @@ export default function FormatToolbar({
       return { ...base, [action]: !base[action] };
     });
     onAction(action);
+  }
+
+  function applyTextColor(color) {
+    setColorUi(color || false);
+    if (color) onAction("setTextColor", color);
+    else onAction("clearTextColor");
+    setOpenMenu(null);
   }
 
   function toggle(menu) {
@@ -205,9 +222,18 @@ export default function FormatToolbar({
     onAction("setZoom", percent);
   }
 
-  const textColor = a.textColor || "#000000";
+  const textColor =
+    colorUi === false
+      ? "#000000"
+      : colorUi || a.textColor || "#000000";
   const displayColor =
-    a.textColor || (darkMode ? "#e8e8e8" : "#000000");
+    colorUi === false
+      ? darkMode
+        ? "#e8e8e8"
+        : "#000000"
+      : colorUi || a.textColor || (darkMode ? "#e8e8e8" : "#000000");
+  const activeTextColor =
+    colorUi === false ? null : colorUi || a.textColor || null;
   const highlightOn = hlUi ? hlUi.on : !!a.highlight;
   const highlightColor = hlUi ? hlUi.color : a.highlightColor;
   const boldOn = markUi && "bold" in markUi ? !!markUi.bold : !!a.bold;
@@ -221,8 +247,8 @@ export default function FormatToolbar({
     sameColor(highlightColor, lastCustomHighlight) &&
     !isPresetHighlight(highlightColor);
   const customTextActive =
-    a.textColor &&
-    sameColor(a.textColor, lastCustomTextColor) &&
+    activeTextColor &&
+    sameColor(activeTextColor, lastCustomTextColor) &&
     !isPresetTextColor(lastCustomTextColor);
 
   return (
@@ -407,16 +433,13 @@ export default function FormatToolbar({
               type="button"
               className="fmt-btn custom-main color-letter-btn"
               title={
-                a.textColor
-                  ? `Font color (${a.textColor})`
+                activeTextColor
+                  ? `Font color (${activeTextColor})`
                   : `Font color (${lastCustomTextColor})`
               }
               onMouseDown={(e) => e.preventDefault()}
               onClick={() =>
-                onAction(
-                  "setTextColor",
-                  a.textColor || lastCustomTextColor,
-                )
+                applyTextColor(activeTextColor || lastCustomTextColor)
               }
             >
               <span
@@ -444,12 +467,12 @@ export default function FormatToolbar({
                     key={c.id}
                     type="button"
                     className={`swatch-btn${
-                      sameColor(textColor, c.color) ? " active" : ""
+                      sameColor(activeTextColor, c.color) ? " active" : ""
                     }`}
                     title={c.title}
                     style={{ background: c.color }}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pick("setTextColor", c.color)}
+                    onClick={() => applyTextColor(c.color)}
                   />
                 ))}
                 <button
@@ -461,7 +484,7 @@ export default function FormatToolbar({
                   title={`Custom (${lastCustomTextColor}) — click to apply, right-click to change`}
                   style={{ background: lastCustomTextColor }}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => pick("setTextColor", lastCustomTextColor)}
+                  onClick={() => applyTextColor(lastCustomTextColor)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     openCustomTextColorPicker(e);
@@ -482,7 +505,7 @@ export default function FormatToolbar({
                 type="button"
                 className="tb-menu-item"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick("clearTextColor")}
+                onClick={() => applyTextColor(null)}
               >
                 Automatic
               </button>
@@ -518,7 +541,9 @@ export default function FormatToolbar({
             onMouseDown={(e) => e.preventDefault()}
             onClick={clearHighlight}
           >
-            <NoHighlightIcon />
+            <span className="swatch no-swatch" aria-hidden="true">
+              <NoHighlightIcon />
+            </span>
           </button>
 
           <div
@@ -736,19 +761,16 @@ function ListIcon() {
 
 function NoHighlightIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-      <rect
-        x="2"
-        y="3"
-        width="12"
-        height="10"
-        rx="1"
-        fill="currentColor"
-        opacity="0.12"
-        stroke="currentColor"
-        strokeWidth="1"
+    <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
+      <line
+        x1="2"
+        y1="13"
+        x2="13"
+        y2="2"
+        stroke="#c62828"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
-      <line x1="3" y1="13" x2="13" y2="3" stroke="#c62828" strokeWidth="1.5" />
     </svg>
   );
 }
