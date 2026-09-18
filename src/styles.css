@@ -89,7 +89,7 @@ body,
 }
 
 .format-toolbar-row.is-compact {
-  justify-content: flex-start;
+  justify-content: center;
   gap: 3px;
   padding: 4px 6px;
 }
@@ -97,13 +97,14 @@ body,
 .format-toolbar-row.is-compact .toolbar-left {
   z-index: 2;
   margin-right: 0;
+  flex: 0 0 auto;
 }
 
 .format-toolbar-row.is-compact .format-toolbar {
-  flex: 0 1 auto;
-  justify-content: flex-start;
+  flex: 0 0 auto;
+  justify-content: center;
   gap: 2px;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
 }
 
@@ -469,7 +470,7 @@ body,
   display: flex;
   align-items: stretch;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   max-width: calc(100% - 140px);
   -webkit-app-region: no-drag;
   app-region: no-drag;
@@ -589,8 +590,8 @@ body,
 }
 
 .titlebar-spacer {
-  flex: 0 0 8px;
-  min-width: 8px;
+  flex: 1 1 auto;
+  min-width: 24px;
   -webkit-app-region: drag;
   app-region: drag;
 }
