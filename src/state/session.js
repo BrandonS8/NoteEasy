@@ -54,19 +54,39 @@ function isSaneWindowState(state) {
   return true;
 }
 
+/** Physical → logical using the window scale factor. */
+function toLogical(physical, factor) {
+  const f = factor > 0 ? factor : 1;
+  return {
+    x: physical.x / f,
+    y: physical.y / f,
+    width: physical.width / f,
+    height: physical.height / f,
+  };
+}
+
 export async function captureWindowState() {
   try {
     const win = getCurrentWindow();
     if (await win.isMinimized()) return null;
+    const factor = await win.scaleFactor();
     const position = await win.outerPosition();
     const size = await win.outerSize();
     const maximized = await win.isMaximized();
+    const logical = toLogical(
+      {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+      },
+      factor,
+    );
     const state = {
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
+      ...logical,
       maximized,
+      // Mark so we don't double-convert older sessions incorrectly later
+      unit: "logical",
     };
     return isSaneWindowState(state) ? state : null;
   } catch {
@@ -81,18 +101,46 @@ export async function restoreWindowState(windowState) {
     const { LogicalPosition, LogicalSize } = await import(
       "@tauri-apps/api/dpi"
     );
-    const width = Math.max(MIN_W, windowState.width || DEFAULT_W);
-    const height = Math.max(MIN_H, windowState.height || DEFAULT_H);
+    const factor = await win.scaleFactor();
+    const monitor = await win.currentMonitor();
+    const maxLogicalW = monitor
+      ? monitor.size.width / (monitor.scaleFactor || factor)
+      : 1920;
+    const maxLogicalH = monitor
+      ? monitor.size.height / (monitor.scaleFactor || factor)
+      : 1080;
+
+    // Older sessions saved physical outerSize as if it were logical — shrink
+    // those back so the window stops growing on every refresh.
+    let width = windowState.width || DEFAULT_W;
+    let height = windowState.height || DEFAULT_H;
     let x = windowState.x;
     let y = windowState.y;
-    if (typeof x !== "number" || typeof y !== "number" || x < -10000 || y < -10000) {
+    if (windowState.unit !== "logical" && factor > 1.01) {
+      if (width > maxLogicalW * 1.05 || height > maxLogicalH * 1.05) {
+        width /= factor;
+        height /= factor;
+        if (typeof x === "number") x /= factor;
+        if (typeof y === "number") y /= factor;
+      }
+    }
+
+    width = Math.min(Math.max(MIN_W, width), maxLogicalW);
+    height = Math.min(Math.max(MIN_H, height), maxLogicalH);
+
+    if (
+      typeof x !== "number" ||
+      typeof y !== "number" ||
+      x < -10000 ||
+      y < -10000
+    ) {
       x = 80;
       y = 80;
     }
 
     await win.unminimize();
-    await win.setSize(new LogicalSize(width, height));
-    await win.setPosition(new LogicalPosition(x, y));
+    await win.setSize(new LogicalSize(Math.round(width), Math.round(height)));
+    await win.setPosition(new LogicalPosition(Math.round(x), Math.round(y)));
     if (windowState.maximized) {
       await win.maximize();
     }
@@ -112,9 +160,12 @@ export async function ensureWindowVisible() {
     if (await win.isMinimized()) {
       await win.unminimize();
     }
+    const factor = await win.scaleFactor();
     const size = await win.outerSize();
     const position = await win.outerPosition();
-    if (size.width < MIN_W || size.height < MIN_H) {
+    const logicalW = size.width / factor;
+    const logicalH = size.height / factor;
+    if (logicalW < MIN_W || logicalH < MIN_H) {
       await win.setSize(new LogicalSize(DEFAULT_W, DEFAULT_H));
     }
     if (position.x < -10000 || position.y < -10000) {
