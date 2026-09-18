@@ -849,6 +849,12 @@ body,
 
 .highlight-cluster .fmt-btn.highlight-swatch {
   width: 30px;
+  height: 30px;
+}
+
+.highlight-cluster .fmt-btn.no-highlight-btn {
+  width: 30px;
+  height: 30px;
 }
 
 .highlight-cluster .fmt-btn.active::after {

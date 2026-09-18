@@ -513,7 +513,7 @@ export default function FormatToolbar({
 
           <button
             type="button"
-            className={`fmt-btn${highlightOn ? "" : " active"}`}
+            className={`fmt-btn highlight-swatch no-highlight-btn${highlightOn ? "" : " active"}`}
             title="No highlight"
             onMouseDown={(e) => e.preventDefault()}
             onClick={clearHighlight}
