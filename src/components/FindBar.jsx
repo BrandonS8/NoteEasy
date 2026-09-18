@@ -39,37 +39,31 @@ export default function FindBar({
           }
         }}
       />
-      {mode === "replace" && (
-        <input
-          value={replaceWith}
-          placeholder="Replace"
-          onChange={(e) => onReplaceChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              onReplace();
-            } else if (e.key === "Escape") {
-              onClose();
-            }
-          }}
-        />
-      )}
+      <input
+        value={replaceWith}
+        placeholder="Replace"
+        onChange={(e) => onReplaceChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onReplace();
+          } else if (e.key === "Escape") {
+            onClose();
+          }
+        }}
+      />
       <button type="button" onClick={onFindPrev}>
         Previous
       </button>
       <button type="button" onClick={onFindNext}>
         Next
       </button>
-      {mode === "replace" && (
-        <>
-          <button type="button" onClick={onReplace}>
-            Replace
-          </button>
-          <button type="button" onClick={onReplaceAll}>
-            Replace All
-          </button>
-        </>
-      )}
+      <button type="button" onClick={onReplace}>
+        Replace
+      </button>
+      <button type="button" onClick={onReplaceAll}>
+        Replace All
+      </button>
       <span className="find-meta">{status}</span>
       <button type="button" onClick={onClose}>
         Close

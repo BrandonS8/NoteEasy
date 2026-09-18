@@ -1,5 +1,6 @@
 import { STYLE_IDS, STYLE_LABELS } from "../state/docStyles.js";
 import { useLayoutEffect, useRef, useState } from "react";
+import { CTX_HIGHLIGHTS, sameColor } from "./FormatToolbar.jsx";
 
 /**
  * Minimal right-click menu anchored to the click point (viewport-fixed).
@@ -11,6 +12,9 @@ export default function EditorContextMenu({
   active = {},
   onAction,
   onClose,
+  onCustomHighlight,
+  selectionFrom,
+  selectionTo,
 }) {
   const menuRef = useRef(null);
   const [pos, setPos] = useState({ left: x, top: y });
@@ -34,10 +38,31 @@ export default function EditorContextMenu({
   if (x == null || y == null) return null;
 
   const label = STYLE_LABELS[currentStyle] || "Body";
+  const highlightColor = active.highlightColor;
 
   function go(action, payload) {
-    onAction(action, payload);
+    if (action === "updateStyleToMatch") {
+      onAction(action, {
+        styleId: payload || currentStyle,
+        from: selectionFrom,
+        to: selectionTo,
+      });
+    } else {
+      // Restore range before format actions so they hit the right text
+      if (selectionFrom != null && selectionTo != null) {
+        onAction("restoreSelection", {
+          from: selectionFrom,
+          to: selectionTo,
+        });
+      }
+      onAction(action, payload);
+    }
     onClose();
+  }
+
+  // Keep editor selection when clicking menu items
+  function keep(e) {
+    e.preventDefault();
   }
 
   return (
@@ -57,6 +82,7 @@ export default function EditorContextMenu({
         <button
           type="button"
           className={`ctx-item${active.bold ? " active" : ""}`}
+          onMouseDown={keep}
           onClick={() => go("bold")}
         >
           Bold
@@ -64,6 +90,7 @@ export default function EditorContextMenu({
         <button
           type="button"
           className={`ctx-item${active.italic ? " active" : ""}`}
+          onMouseDown={keep}
           onClick={() => go("italic")}
         >
           Italic
@@ -71,20 +98,47 @@ export default function EditorContextMenu({
         <button
           type="button"
           className={`ctx-item${active.strike ? " active" : ""}`}
+          onMouseDown={keep}
           onClick={() => go("strike")}
         >
           Strikethrough
         </button>
+
+        <div className="menu-sep" />
+
+        <div className="ctx-label">Highlight</div>
+        <div className="ctx-swatch-row">
+          {CTX_HIGHLIGHTS.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              className={`swatch-btn${
+                active.highlight && sameColor(highlightColor, h.color)
+                  ? " active"
+                  : ""
+              }`}
+              title={h.title}
+              style={{ background: h.color }}
+              onMouseDown={keep}
+              onClick={() => go("highlight", h.color)}
+            />
+          ))}
+          <button
+            type="button"
+            className="ctx-item-inline"
+            onMouseDown={keep}
+            onClick={(e) => {
+              onCustomHighlight?.(e.currentTarget);
+              onClose();
+            }}
+          >
+            Custom…
+          </button>
+        </div>
         <button
           type="button"
           className="ctx-item"
-          onClick={() => go("highlight", "#ffeb3b")}
-        >
-          Highlight
-        </button>
-        <button
-          type="button"
-          className="ctx-item"
+          onMouseDown={keep}
           onClick={() => go("clearHighlight")}
         >
           Clear highlight
@@ -98,6 +152,7 @@ export default function EditorContextMenu({
             key={id}
             type="button"
             className={`ctx-item${currentStyle === id ? " active" : ""}`}
+            onMouseDown={keep}
             onClick={() => go("setDocStyle", id)}
           >
             {STYLE_LABELS[id]}
@@ -109,9 +164,9 @@ export default function EditorContextMenu({
         <button
           type="button"
           className="ctx-item"
-          disabled={currentStyle === "body"}
           title="Save this look as the style for this document"
-          onClick={() => go("updateStyleToMatch")}
+          onMouseDown={keep}
+          onClick={() => go("updateStyleToMatch", currentStyle)}
         >
           Update “{label}” to match
         </button>

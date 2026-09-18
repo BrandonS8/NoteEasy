@@ -21,6 +21,38 @@ export function titleFromPath(filePath) {
   return parts[parts.length - 1] || "Untitled";
 }
 
+/** Sanitize a string for use as a Windows file name (no extension). */
+export function sanitizeFileStem(raw, { maxLen = 80 } = {}) {
+  let name = String(raw ?? "")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name) return "";
+  // Avoid reserved device names
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(name)) {
+    name = `${name}_note`;
+  }
+  if (name.length > maxLen) name = name.slice(0, maxLen).trim();
+  return name.replace(/[. ]+$/g, "");
+}
+
+/** Prefer first non-empty line of text as save default (Untitled → first line). */
+export function suggestedSaveName(tab, plainText) {
+  if (tab?.path) return tab.path;
+  const text = String(plainText ?? "");
+  const firstLine =
+    text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find(Boolean) || "";
+  const stem =
+    sanitizeFileStem(firstLine) ||
+    sanitizeFileStem(tab?.title) ||
+    "Untitled";
+  if (/\.(txt|nte|text|log)$/i.test(stem)) return stem;
+  return `${stem}.txt`;
+}
+
 export function htmlToPlainText(html) {
   const doc = new DOMParser().parseFromString(html || "", "text/html");
   const blocks = [...doc.body.querySelectorAll("p")];

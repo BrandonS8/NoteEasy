@@ -17,9 +17,14 @@ import {
   forwardRef,
   useRef,
 } from "react";
+import { TextSelection } from "@tiptap/pm/state";
 import { StyledParagraph } from "./StyledParagraph.js";
 import { FontSize } from "./FontSize.js";
-import { buildDocStylesCss } from "../state/docStyles.js";
+import { buildDocStylesCss, mergeDocStyles } from "../state/docStyles.js";
+import {
+  applyStyleDefToParagraphs,
+  sampleStyleFromEditor,
+} from "./applyDocStyle.js";
 
 const NotepadEditor = forwardRef(function NotepadEditor(
   {
@@ -39,6 +44,17 @@ const NotepadEditor = forwardRef(function NotepadEditor(
   const applyingExternal = useRef(false);
   const shellRef = useRef(null);
   const styleTagRef = useRef(null);
+  const onContextMenuRef = useRef(onContextMenu);
+  onContextMenuRef.current = onContextMenu;
+  const onActiveFormatsChangeRef = useRef(onActiveFormatsChange);
+  onActiveFormatsChangeRef.current = onActiveFormatsChange;
+  /** When true, caret typing has highlight forced off until a highlight is chosen or the caret moves. */
+  const highlightTypingOffRef = useRef(false);
+  const lastSelRef = useRef({ from: 0, to: 0 });
+  const docStylesRef = useRef(docStyles);
+  docStylesRef.current = docStyles;
+  const baseFontSizeRef = useRef(baseFontSize);
+  baseFontSizeRef.current = baseFontSize;
 
   const editor = useEditor({
     extensions: [
@@ -53,7 +69,14 @@ const NotepadEditor = forwardRef(function NotepadEditor(
       OrderedList,
       ListItem,
       TextStyle,
-      FontSize,
+      FontSize.configure({
+        getInheritedSize: (styleId) => {
+          const def = mergeDocStyles(docStylesRef.current)[styleId];
+          if (typeof def?.fontSize === "number") return def.fontSize;
+          return baseFontSizeRef.current;
+        },
+        fallbackSize: 14,
+      }),
       Color,
       Highlight.configure({
         multicolor: true,
@@ -71,12 +94,48 @@ const NotepadEditor = forwardRef(function NotepadEditor(
       handleDOMEvents: {
         contextmenu: (view, event) => {
           event.preventDefault();
-          const style =
+          // Snapshot first — browsers / our own code used to collapse the range
+          // on right-click, which broke “Update style to match”.
+          const { from, to } = view.state.selection;
+          const coords = view.posAtCoords({
+            left: event.clientX,
+            top: event.clientY,
+          });
+
+          let style =
             view.state.selection.$from.parent.attrs?.docStyle || "body";
-          onContextMenu?.({
+          // With a range selection, the style to update is the selection's —
+          // don't switch the menu label to a different paragraph under the click.
+          if (view.state.selection.empty && coords) {
+            const $pos = view.state.doc.resolve(coords.pos);
+            for (let d = $pos.depth; d > 0; d--) {
+              const node = $pos.node(d);
+              if (node.type.name === "paragraph") {
+                style = node.attrs.docStyle || "body";
+                break;
+              }
+            }
+          }
+
+          // Restore if something already collapsed the ProseMirror selection
+          if (
+            from !== to &&
+            (view.state.selection.from !== from ||
+              view.state.selection.to !== to)
+          ) {
+            view.dispatch(
+              view.state.tr.setSelection(
+                TextSelection.create(view.state.doc, from, to),
+              ),
+            );
+          }
+
+          onContextMenuRef.current?.({
             x: event.clientX,
             y: event.clientY,
             docStyle: style,
+            selectionFrom: from,
+            selectionTo: to,
           });
           return true;
         },
@@ -122,11 +181,21 @@ const NotepadEditor = forwardRef(function NotepadEditor(
     onUpdate: ({ editor: ed }) => {
       if (applyingExternal.current) return;
       onUpdate?.(ed.getHTML());
-      onActiveFormatsChange?.(readFormats(ed));
+      onActiveFormatsChangeRef.current?.(
+        readFormats(ed, highlightTypingOffRef.current),
+      );
     },
     onSelectionUpdate: ({ editor: ed }) => {
+      const { from, to } = ed.state.selection;
+      const prev = lastSelRef.current;
+      if (from !== prev.from || to !== prev.to) {
+        highlightTypingOffRef.current = false;
+        lastSelRef.current = { from, to };
+      }
       onSelectionChange?.(getLineCol(ed));
-      onActiveFormatsChange?.(readFormats(ed));
+      onActiveFormatsChangeRef.current?.(
+        readFormats(ed, highlightTypingOffRef.current),
+      );
     },
   });
 
@@ -179,45 +248,157 @@ const NotepadEditor = forwardRef(function NotepadEditor(
       strike: () => editor?.chain().focus().toggleStrike().run(),
       bulletList: () => editor?.chain().focus().toggleBulletList().run(),
       orderedList: () => editor?.chain().focus().toggleOrderedList().run(),
-      highlight: (color = "#ffeb3b") =>
-        editor?.chain().focus().toggleHighlight({ color }).run(),
-      clearHighlight: () => editor?.chain().focus().unsetHighlight().run(),
-      clearFormatting: () =>
+      highlight: (color = "#ffeb3b") => {
+        if (!editor) return false;
+        highlightTypingOffRef.current = false;
+        lastSelRef.current = {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+        };
+        editor.chain().focus().setHighlight({ color }).run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return true;
+      },
+      clearHighlight: () => {
+        if (!editor) return false;
+        const highlightType = editor.state.schema.marks.highlight;
+        if (!highlightType) return false;
+
+        highlightTypingOffRef.current = true;
+        lastSelRef.current = {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+        };
+
+        function applyClear(state) {
+          let tr = state.tr;
+          if (!state.selection.empty) {
+            tr = tr.removeMark(
+              state.selection.from,
+              state.selection.to,
+              highlightType,
+            );
+            // Cleared a range — off-flag is only for caret typing
+            highlightTypingOffRef.current = state.selection.empty;
+          }
+          const baseMarks = state.storedMarks || state.selection.$from.marks();
+          const nextMarks = baseMarks.filter((m) => m.type !== highlightType);
+          return tr.setStoredMarks(nextMarks);
+        }
+
+        editor.view.dispatch(applyClear(editor.state));
+        if (!editor.view.hasFocus()) editor.view.focus();
+
+        queueMicrotask(() => {
+          if (editor.isDestroyed) return;
+          if (
+            editor.state.selection.empty &&
+            highlightTypingOffRef.current
+          ) {
+            const sm = editor.state.storedMarks;
+            const lost =
+              sm == null || sm.some((m) => m.type === highlightType);
+            if (lost) editor.view.dispatch(applyClear(editor.state));
+          }
+          onActiveFormatsChangeRef.current?.(
+            readFormats(editor, highlightTypingOffRef.current),
+          );
+        });
+
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return true;
+      },
+      clearFormatting: () => {
+        if (!editor) return false;
+        const { empty, $from } = editor.state.selection;
+
+        // Empty caret → select current block so marks/styles actually clear
+        if (empty) {
+          editor
+            .chain()
+            .focus()
+            .setTextSelection({ from: $from.start(), to: $from.end() })
+            .run();
+        }
+
         editor
-          ?.chain()
+          .chain()
           .focus()
           .unsetAllMarks()
-          .updateAttributes("paragraph", { docStyle: "body" })
-          .run(),
+          .unsetHighlight()
+          .unsetColor()
+          .unsetFontSize()
+          .clearNodes()
+          .run();
+
+        // Reset named paragraph styles in the current selection
+        const { from, to } = editor.state.selection;
+        const tr = editor.state.tr;
+        editor.state.doc.nodesBetween(from, to, (node, pos) => {
+          if (node.type.name === "paragraph" && node.attrs.docStyle !== "body") {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              docStyle: "body",
+            });
+          }
+        });
+        if (tr.docChanged) {
+          editor.view.dispatch(tr);
+        }
+        return true;
+      },
       setFontSize: (size) => editor?.chain().focus().setFontSize(size).run(),
+      nudgeFontSize: (delta) =>
+        editor?.chain().focus().nudgeFontSize(delta).run(),
       setTextColor: (color) => editor?.chain().focus().setColor(color).run(),
       clearTextColor: () => editor?.chain().focus().unsetColor().run(),
-      setDocStyle: (styleId) =>
+      setDocStyle: (styleId) => {
+        if (!editor) return false;
+        const id = styleId || "body";
         editor
-          ?.chain()
+          .chain()
           .focus()
-          .updateAttributes("paragraph", { docStyle: styleId || "body" })
-          .run(),
+          .updateAttributes("paragraph", { docStyle: id })
+          .run();
+        const def = mergeDocStyles(docStylesRef.current)[id];
+        return applyStyleDefToParagraphs(editor, id, def, baseFontSize, {
+          onlySelection: true,
+        });
+      },
       getDocStyle: () =>
         editor?.state.selection.$from.parent.attrs?.docStyle || "body",
-      sampleStyleFromSelection: () => {
-        if (!editor) return null;
-        const { from } = editor.state.selection;
-        const dom = editor.view.domAtPos(from).node;
-        const el =
-          dom.nodeType === 1
-            ? dom.closest?.("p") || dom
-            : dom.parentElement?.closest?.("p");
-        const computed = el ? window.getComputedStyle(el) : null;
-        const size = computed ? parseInt(computed.fontSize, 10) : baseFontSize;
-        return {
-          fontSize: size || baseFontSize,
-          bold:
-            editor.isActive("bold") ||
-            (computed && parseInt(computed.fontWeight, 10) >= 600),
-          italic:
-            editor.isActive("italic") || computed?.fontStyle === "italic",
-        };
+      sampleStyleFromSelection: () =>
+        sampleStyleFromEditor(editor, baseFontSize),
+      restoreSelection: (from, to) => {
+        if (!editor || from == null || to == null) return false;
+        try {
+          return editor
+            .chain()
+            .setTextSelection({ from, to })
+            .run();
+        } catch {
+          return false;
+        }
+      },
+      /** Re-apply a style definition to every paragraph using that style. */
+      applyStyleToMatching: (styleId, def) => {
+        if (!editor || !styleId || !def) return false;
+        // Sync CSS immediately so paint matches marks even before React commits
+        if (styleTagRef.current) {
+          const next = mergeDocStyles({
+            ...docStylesRef.current,
+            [styleId]: def,
+          });
+          styleTagRef.current.textContent = buildDocStylesCss(
+            next,
+            baseFontSize,
+          );
+        }
+        return applyStyleDefToParagraphs(editor, styleId, def, baseFontSize);
       },
       findNext: (query, fromStart = false) =>
         findInEditor(editor, query, true, fromStart),
@@ -228,7 +409,7 @@ const NotepadEditor = forwardRef(function NotepadEditor(
         replaceInEditor(editor, query, replacement, true),
       getLineCol: () => getLineCol(editor),
     }),
-    [editor, baseFontSize],
+    [editor, baseFontSize, docStyles],
   );
 
   function focusEditor(e) {
@@ -251,7 +432,7 @@ const NotepadEditor = forwardRef(function NotepadEditor(
   );
 });
 
-function readFormats(editor) {
+function readFormats(editor, highlightTypingOff = false) {
   if (!editor) {
     return {
       bold: false,
@@ -268,14 +449,35 @@ function readFormats(editor) {
   }
   const textStyle = editor.getAttributes("textStyle");
   const highlightAttrs = editor.getAttributes("highlight");
+  const { selection, storedMarks } = editor.state;
+  const typingMarks =
+    selection.empty && storedMarks != null ? storedMarks : null;
+  const typingHighlight =
+    typingMarks != null
+      ? typingMarks.find((m) => m.type.name === "highlight")
+      : null;
+
+  let highlight;
+  let highlightColor;
+  if (highlightTypingOff) {
+    highlight = false;
+    highlightColor = null;
+  } else if (typingMarks != null) {
+    highlight = !!typingHighlight;
+    highlightColor = typingHighlight?.attrs?.color || null;
+  } else {
+    highlight = editor.isActive("highlight");
+    highlightColor = highlightAttrs?.color || null;
+  }
+
   return {
     bold: editor.isActive("bold"),
     italic: editor.isActive("italic"),
     strike: editor.isActive("strike"),
     bulletList: editor.isActive("bulletList"),
     orderedList: editor.isActive("orderedList"),
-    highlight: editor.isActive("highlight"),
-    highlightColor: highlightAttrs?.color || null,
+    highlight,
+    highlightColor,
     textColor: textStyle?.color || null,
     fontSize: textStyle?.fontSize || null,
     docStyle: editor.state.selection.$from.parent.attrs?.docStyle || "body",

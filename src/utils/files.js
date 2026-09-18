@@ -12,7 +12,19 @@ const FILTERS = [
   { name: "All Files", extensions: ["*"] },
 ];
 
+/** Restore normal cursor before native OS dialogs (WebView can leave a missing I-beam). */
+export function prepareForNativeDialog() {
+  try {
+    document.body.style.cursor = "default";
+    document.documentElement.style.cursor = "default";
+    if (document.activeElement?.blur) document.activeElement.blur();
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function pickOpenPath() {
+  prepareForNativeDialog();
   return open({
     multiple: false,
     directory: false,
@@ -21,6 +33,7 @@ export async function pickOpenPath() {
 }
 
 export async function pickSavePath(defaultPath) {
+  prepareForNativeDialog();
   return save({
     defaultPath: defaultPath || undefined,
     filters: FILTERS,
@@ -64,6 +77,7 @@ export async function writeDocument(filePath, contentHtml, docStyles = null) {
 }
 
 export async function confirmDiscard(title) {
+  prepareForNativeDialog();
   return ask(`Do you want to save changes to ${title}?`, {
     title: "NoteEasy",
     kind: "warning",
@@ -73,5 +87,6 @@ export async function confirmDiscard(title) {
 }
 
 export async function showInfo(text) {
+  prepareForNativeDialog();
   await message(text, { title: "NoteEasy", kind: "info" });
 }

@@ -2,6 +2,10 @@ import { Store } from "@tauri-apps/plugin-store";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const STORE_FILE = "session.json";
+const MIN_W = 480;
+const MIN_H = 320;
+const DEFAULT_W = 900;
+const DEFAULT_H = 640;
 
 let storePromise = null;
 
@@ -32,51 +36,92 @@ export async function saveSession(session) {
   }
 }
 
+function isSaneWindowState(state) {
+  if (!state || typeof state !== "object") return false;
+  const { x, y, width, height } = state;
+  if (
+    typeof width !== "number" ||
+    typeof height !== "number" ||
+    width < MIN_W ||
+    height < MIN_H
+  ) {
+    return false;
+  }
+  // Windows parks minimized windows around -32000
+  if (typeof x === "number" && typeof y === "number") {
+    if (x < -10000 || y < -10000) return false;
+  }
+  return true;
+}
+
 export async function captureWindowState() {
   try {
     const win = getCurrentWindow();
+    if (await win.isMinimized()) return null;
     const position = await win.outerPosition();
     const size = await win.outerSize();
     const maximized = await win.isMaximized();
-    return {
+    const state = {
       x: position.x,
       y: position.y,
       width: size.width,
       height: size.height,
       maximized,
     };
+    return isSaneWindowState(state) ? state : null;
   } catch {
     return null;
   }
 }
 
 export async function restoreWindowState(windowState) {
-  if (!windowState) return;
+  if (!isSaneWindowState(windowState)) return;
   try {
     const win = getCurrentWindow();
     const { LogicalPosition, LogicalSize } = await import(
       "@tauri-apps/api/dpi"
     );
-    if (
-      typeof windowState.x === "number" &&
-      typeof windowState.y === "number"
-    ) {
-      await win.setPosition(
-        new LogicalPosition(windowState.x, windowState.y),
-      );
+    const width = Math.max(MIN_W, windowState.width || DEFAULT_W);
+    const height = Math.max(MIN_H, windowState.height || DEFAULT_H);
+    let x = windowState.x;
+    let y = windowState.y;
+    if (typeof x !== "number" || typeof y !== "number" || x < -10000 || y < -10000) {
+      x = 80;
+      y = 80;
     }
-    if (
-      typeof windowState.width === "number" &&
-      typeof windowState.height === "number"
-    ) {
-      await win.setSize(
-        new LogicalSize(windowState.width, windowState.height),
-      );
-    }
+
+    await win.unminimize();
+    await win.setSize(new LogicalSize(width, height));
+    await win.setPosition(new LogicalPosition(x, y));
     if (windowState.maximized) {
       await win.maximize();
     }
+    await win.setFocus();
   } catch (err) {
     console.error("Failed to restore window", err);
+  }
+}
+
+/** Bring the window back if it ended up minimized / off-screen / tiny. */
+export async function ensureWindowVisible() {
+  try {
+    const win = getCurrentWindow();
+    const { LogicalPosition, LogicalSize } = await import(
+      "@tauri-apps/api/dpi"
+    );
+    if (await win.isMinimized()) {
+      await win.unminimize();
+    }
+    const size = await win.outerSize();
+    const position = await win.outerPosition();
+    if (size.width < MIN_W || size.height < MIN_H) {
+      await win.setSize(new LogicalSize(DEFAULT_W, DEFAULT_H));
+    }
+    if (position.x < -10000 || position.y < -10000) {
+      await win.setPosition(new LogicalPosition(80, 80));
+    }
+    await win.setFocus();
+  } catch (err) {
+    console.error("Failed to show window", err);
   }
 }

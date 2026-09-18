@@ -20,17 +20,24 @@ export const STYLE_LABELS = {
   body: "Body",
 };
 
+/** Empty formatting extras shared by defaults. */
+const STYLE_EXTRAS = {
+  strike: false,
+  color: null,
+  highlight: null,
+};
+
 /** Default document styles (Body inherits the app font size when fontSize is null). */
 export function createDefaultDocStyles() {
   return {
-    title: { fontSize: 28, bold: true, italic: false },
-    subtitle: { fontSize: 18, bold: false, italic: true },
-    heading1: { fontSize: 22, bold: true, italic: false },
-    heading2: { fontSize: 18, bold: true, italic: false },
-    heading3: { fontSize: 16, bold: true, italic: false },
-    heading4: { fontSize: 14, bold: true, italic: false },
-    heading5: { fontSize: 12, bold: true, italic: false },
-    body: { fontSize: null, bold: false, italic: false },
+    title: { fontSize: 28, bold: true, italic: false, ...STYLE_EXTRAS },
+    subtitle: { fontSize: 18, bold: false, italic: true, ...STYLE_EXTRAS },
+    heading1: { fontSize: 22, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading2: { fontSize: 18, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading3: { fontSize: 16, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading4: { fontSize: 14, bold: true, italic: false, ...STYLE_EXTRAS },
+    heading5: { fontSize: 12, bold: true, italic: false, ...STYLE_EXTRAS },
+    body: { fontSize: null, bold: false, italic: false, ...STYLE_EXTRAS },
   };
 }
 
@@ -47,17 +54,12 @@ export function mergeDocStyles(partial) {
 
 export function styleToCss(styleId, def, bodyFontSize) {
   if (!def) return "";
-  const size =
-    def.fontSize == null
-      ? styleId === "body"
-        ? bodyFontSize
-        : bodyFontSize
-      : def.fontSize;
-  const parts = [];
-  if (size) parts.push(`font-size: ${size}px`);
-  parts.push(`font-weight: ${def.bold ? 700 : 400}`);
-  parts.push(`font-style: ${def.italic ? "italic" : "normal"}`);
-  return parts.join("; ");
+  // Only font-size lives in CSS as a soft default. Bold/italic/color/highlight
+  // are marks so individual paragraphs can still be edited until
+  // “Update style to match” reapplies them.
+  const size = def.fontSize == null ? bodyFontSize : def.fontSize;
+  if (!size) return "";
+  return `font-size: ${size}px`;
 }
 
 /** Build a <style> block for the editor from document style definitions. */

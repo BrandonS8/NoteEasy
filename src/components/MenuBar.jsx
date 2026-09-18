@@ -58,17 +58,13 @@ const MENUS = [
       { id: "zoomOut", label: "Zoom Out", accel: "Ctrl+Minus" },
       { id: "zoomReset", label: "Restore Default Zoom", accel: "Ctrl+0" },
       { sep: true },
+      { id: "darkMode", label: "Dark Mode", check: true },
       { id: "statusBar", label: "Status Bar", check: true },
     ],
   },
-  {
-    id: "help",
-    label: "Help",
-    items: [{ id: "about", label: "About NoteEasy" }],
-  },
 ];
 
-export default function MenuBar({ onAction, wordWrap, statusBar }) {
+export default function MenuBar({ onAction, wordWrap, statusBar, darkMode }) {
   const [openId, setOpenId] = useState(null);
   const rootRef = useRef(null);
 
@@ -115,7 +111,8 @@ export default function MenuBar({ onAction, wordWrap, statusBar }) {
                       {item.check ? (
                         <span className="menu-check">
                           {(item.id === "wordWrap" && wordWrap) ||
-                          (item.id === "statusBar" && statusBar)
+                          (item.id === "statusBar" && statusBar) ||
+                          (item.id === "darkMode" && darkMode)
                             ? "✓"
                             : ""}
                         </span>

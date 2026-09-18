@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import MenuBar from "./components/MenuBar.jsx";
 import TabBar from "./components/TabBar.jsx";
-import StatusBar from "./components/StatusBar.jsx";
+import StatusBar, { countTextStats } from "./components/StatusBar.jsx";
 import FindBar from "./components/FindBar.jsx";
 import FontDialog from "./components/FontDialog.jsx";
-import FormatToolbar from "./components/FormatToolbar.jsx";
+import FormatToolbar, {
+  openNativeColorPicker,
+} from "./components/FormatToolbar.jsx";
 import EditorContextMenu from "./components/EditorContextMenu.jsx";
 import NotepadEditor from "./editor/NotepadEditor.jsx";
-import { createTab, titleFromPath } from "./state/tabs.js";
-import { mergeDocStyles } from "./state/docStyles.js";
+import { createTab, titleFromPath, suggestedSaveName, htmlToPlainText } from "./state/tabs.js";
+import { mergeDocStyles, STYLE_IDS } from "./state/docStyles.js";
 import {
   captureWindowState,
   loadSession,
   restoreWindowState,
+  ensureWindowVisible,
   saveSession,
 } from "./state/session.js";
 import {
@@ -21,7 +23,6 @@ import {
   pickOpenPath,
   pickSavePath,
   readDocument,
-  showInfo,
   writeDocument,
 } from "./utils/files.js";
 import { isTauri } from "./utils/tauri.js";
@@ -34,11 +35,14 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const [statusBar, setStatusBar] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
   const [fontFamily, setFontFamily] = useState("Consolas");
   const [fontSize, setFontSize] = useState(14);
   const [zoom, setZoom] = useState(100);
   const [line, setLine] = useState(1);
   const [column, setColumn] = useState(1);
+  const [words, setWords] = useState(0);
+  const [characters, setCharacters] = useState(0);
   const [findMode, setFindMode] = useState(null);
   const [findQuery, setFindQuery] = useState("");
   const [replaceWith, setReplaceWith] = useState("");
@@ -46,24 +50,64 @@ export default function App() {
   const [fontOpen, setFontOpen] = useState(false);
   const [activeFormats, setActiveFormats] = useState({});
   const [ctxMenu, setCtxMenu] = useState(null);
+  const [lastCustomHighlight, setLastCustomHighlight] = useState("#c8e6c9");
+  const [lastCustomTextColor, setLastCustomTextColor] = useState("#00897b");
 
   const editorRef = useRef(null);
+  const textColorInputRef = useRef(null);
+  const highlightColorInputRef = useRef(null);
+  /** Keeps toolbar highlight active state in sync on click (editor events can lag/overwrite). */
+  const highlightUiLockRef = useRef(null);
   const tabsRef = useRef(tabs);
   const activeIdRef = useRef(activeId);
   const settingsRef = useRef({});
 
   tabsRef.current = tabs;
   activeIdRef.current = activeId;
+
+  const lockHighlightUi = useCallback((highlight, highlightColor) => {
+    highlightUiLockRef.current = {
+      highlight,
+      highlightColor,
+      until: Date.now() + 600,
+    };
+    setActiveFormats((prev) => ({
+      ...prev,
+      highlight,
+      highlightColor,
+    }));
+  }, []);
+
+  const onActiveFormatsChange = useCallback((formats) => {
+    const lock = highlightUiLockRef.current;
+    if (lock && Date.now() < lock.until) {
+      setActiveFormats({
+        ...formats,
+        highlight: lock.highlight,
+        highlightColor: lock.highlightColor,
+      });
+      return;
+    }
+    highlightUiLockRef.current = null;
+    setActiveFormats(formats);
+  }, []);
   settingsRef.current = {
     wordWrap,
     statusBar,
+    darkMode,
     fontFamily,
     fontSize,
     zoom,
+    lastCustomHighlight,
+    lastCustomTextColor,
   };
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const displayFontSize = Math.max(8, Math.round((fontSize * zoom) / 100));
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+  }, [darkMode]);
 
   const updateTab = useCallback((id, patch) => {
     setTabs((prev) =>
@@ -74,6 +118,16 @@ export default function App() {
   const persistSession = useCallback(async () => {
     const windowState = await captureWindowState();
     const s = settingsRef.current;
+    // Keep last good window geometry if capture skips (minimized / insane)
+    let window = windowState;
+    if (!window) {
+      try {
+        const prev = await loadSession();
+        window = prev?.window || undefined;
+      } catch {
+        window = undefined;
+      }
+    }
     await saveSession({
       tabs: tabsRef.current.map((t) => ({
         id: t.id,
@@ -87,10 +141,13 @@ export default function App() {
       activeId: activeIdRef.current,
       wordWrap: s.wordWrap,
       statusBar: s.statusBar,
+      darkMode: s.darkMode,
       fontFamily: s.fontFamily,
       fontSize: s.fontSize,
       zoom: s.zoom,
-      window: windowState,
+      lastCustomHighlight: s.lastCustomHighlight,
+      lastCustomTextColor: s.lastCustomTextColor,
+      window,
     });
   }, []);
 
@@ -104,20 +161,30 @@ export default function App() {
           new Promise((resolve) => setTimeout(() => resolve(null), 2000)),
         ]);
         if (cancelled) return;
-        if (session?.tabs?.length) {
-          setTabs(session.tabs.map((t) => createTab(t)));
-          setActiveId(session.activeId || session.tabs[0].id);
+        if (session) {
+          if (session.tabs?.length) {
+            setTabs(session.tabs.map((t) => createTab(t)));
+            setActiveId(session.activeId || session.tabs[0].id);
+          }
           if (typeof session.wordWrap === "boolean")
             setWordWrap(session.wordWrap);
           if (typeof session.statusBar === "boolean")
             setStatusBar(session.statusBar);
+          if (typeof session.darkMode === "boolean")
+            setDarkMode(session.darkMode);
           if (session.fontFamily) setFontFamily(session.fontFamily);
           if (session.fontSize) setFontSize(session.fontSize);
           if (session.zoom) setZoom(session.zoom);
+          if (session.lastCustomHighlight)
+            setLastCustomHighlight(session.lastCustomHighlight);
+          if (session.lastCustomTextColor)
+            setLastCustomTextColor(session.lastCustomTextColor);
           if (isTauri()) await restoreWindowState(session.window);
         }
+        if (isTauri()) await ensureWindowVisible();
       } catch (err) {
         console.error("Session restore failed", err);
+        if (isTauri()) await ensureWindowVisible();
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -139,9 +206,12 @@ export default function App() {
     activeId,
     wordWrap,
     statusBar,
+    darkMode,
     fontFamily,
     fontSize,
     zoom,
+    lastCustomHighlight,
+    lastCustomTextColor,
     ready,
     persistSession,
   ]);
@@ -197,7 +267,13 @@ export default function App() {
 
       let filePath = tab.path;
       if (saveAs || !filePath) {
-        filePath = await pickSavePath(filePath || `${tab.title}.txt`);
+        const plain =
+          tabId === activeIdRef.current
+            ? editorRef.current?.getText?.() ??
+              htmlToPlainText(tab.contentHtml)
+            : htmlToPlainText(tab.contentHtml);
+        const defaultName = suggestedSaveName(tab, plain);
+        filePath = await pickSavePath(defaultName);
         if (!filePath) return false;
       }
 
@@ -252,6 +328,57 @@ export default function App() {
     [saveTab],
   );
 
+  const closeTabsWhere = useCallback(
+    async (predicate) => {
+      const ids = tabsRef.current.filter(predicate).map((t) => t.id);
+      for (const id of ids) {
+        await closeTab(id);
+      }
+    },
+    [closeTab],
+  );
+
+  const closeTabsLeft = useCallback(
+    (tabId) => {
+      const idx = tabsRef.current.findIndex((t) => t.id === tabId);
+      if (idx <= 0) return;
+      return closeTabsWhere((_, i) => i < idx);
+    },
+    [closeTabsWhere],
+  );
+
+  const closeTabsRight = useCallback(
+    (tabId) => {
+      const idx = tabsRef.current.findIndex((t) => t.id === tabId);
+      if (idx < 0) return;
+      return closeTabsWhere((_, i) => i > idx);
+    },
+    [closeTabsWhere],
+  );
+
+  const closeOtherTabs = useCallback(
+    (tabId) => closeTabsWhere((t) => t.id !== tabId),
+    [closeTabsWhere],
+  );
+
+  const closeAllTabs = useCallback(async () => {
+    flushActiveHtml();
+    const snapshot = [...tabsRef.current];
+    for (const tab of snapshot) {
+      if (!tab.dirty) continue;
+      const shouldSave = await confirmDiscard(tab.title);
+      if (shouldSave) {
+        const ok = await saveTab(tab.id);
+        if (!ok) return;
+      }
+    }
+    const fresh = createTab();
+    setTabs([fresh]);
+    setActiveId(fresh.id);
+    setCtxMenu(null);
+    setFindMode(null);
+  }, [flushActiveHtml, saveTab]);
+
   const openFile = useCallback(async () => {
     const filePath = await pickOpenPath();
     if (!filePath) return;
@@ -276,9 +403,28 @@ export default function App() {
   const onEditorUpdate = useCallback(
     (html) => {
       updateTab(activeIdRef.current, { contentHtml: html, dirty: true });
+      const text = editorRef.current?.getText?.() ?? "";
+      const stats = countTextStats(text);
+      setWords(stats.words);
+      setCharacters(stats.characters);
     },
     [updateTab],
   );
+
+  // Refresh counts when switching tabs
+  useEffect(() => {
+    if (!ready || !activeTab) return;
+    // Prefer live editor text; fall back to stripping HTML roughly via editor after mount
+    const t = setTimeout(() => {
+      const text = editorRef.current?.getText?.();
+      if (text != null) {
+        const stats = countTextStats(text);
+        setWords(stats.words);
+        setCharacters(stats.characters);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [ready, activeTab?.id]);
 
   const handleAction = useCallback(
     async (action, payload) => {
@@ -319,10 +465,10 @@ export default function App() {
           ed?.selectAll();
           break;
         case "find":
-          setFindMode("find");
+          setFindMode((m) => (m ? null : "find"));
           break;
         case "replace":
-          setFindMode("replace");
+          setFindMode("find");
           break;
         case "wordWrap":
           setWordWrap((v) => !v);
@@ -335,27 +481,45 @@ export default function App() {
             ed?.setFontSize(payload);
           }
           break;
+        case "nudgeFontSize":
+          if (typeof payload === "number" && payload !== 0) {
+            ed?.nudgeFontSize?.(payload);
+          }
+          break;
         case "setTextColor":
           if (payload) ed?.setTextColor(payload);
           break;
         case "clearTextColor":
           ed?.clearTextColor();
           break;
+        case "restoreSelection":
+          if (payload?.from != null && payload?.to != null) {
+            ed?.restoreSelection?.(payload.from, payload.to);
+          }
+          break;
         case "setDocStyle":
           ed?.setDocStyle(payload || "body");
           break;
         case "updateStyleToMatch": {
-          const styleId = ed?.getDocStyle?.() || "body";
-          if (styleId === "body") break;
+          const styleId = payload?.styleId || payload || ed?.getDocStyle?.() || "body";
+          if (payload?.from != null && payload?.to != null) {
+            ed?.restoreSelection?.(payload.from, payload.to);
+          }
+          if (!STYLE_IDS.includes(styleId)) break;
           const sample = ed?.sampleStyleFromSelection?.();
           if (!sample) break;
           const tab = tabsRef.current.find((t) => t.id === activeIdRef.current);
           if (!tab) break;
+          // Replace the style wholesale so cleared attrs (no color/highlight) stick
+          const nextStyles = {
+            ...mergeDocStyles(tab.docStyles),
+            [styleId]: { ...sample },
+          };
+          // Push marks + CSS onto every matching paragraph first (visible now)
+          ed?.applyStyleToMatching?.(styleId, sample);
           updateTab(activeIdRef.current, {
-            docStyles: mergeDocStyles({
-              ...tab.docStyles,
-              [styleId]: sample,
-            }),
+            docStyles: nextStyles,
+            contentHtml: ed?.getHTML?.() ?? tab.contentHtml,
             dirty: true,
           });
           break;
@@ -376,19 +540,26 @@ export default function App() {
           ed?.orderedList();
           break;
         case "highlight":
-        case "highlightYellow":
-          ed?.highlight(payload || "#ffeb3b");
+        case "highlightYellow": {
+          const color = payload || "#ffeb3b";
+          lockHighlightUi(true, color);
+          ed?.highlight(color);
           break;
+        }
         case "highlightRed":
+          lockHighlightUi(true, "#ffcdd2");
           ed?.highlight("#ffcdd2");
           break;
         case "highlightGreen":
+          lockHighlightUi(true, "#c8e6c9");
           ed?.highlight("#c8e6c9");
           break;
         case "highlightBlue":
+          lockHighlightUi(true, "#bbdefb");
           ed?.highlight("#bbdefb");
           break;
         case "clearHighlight":
+          lockHighlightUi(false, null);
           ed?.clearHighlight();
           break;
         case "clearFormatting":
@@ -403,19 +574,22 @@ export default function App() {
         case "zoomReset":
           setZoom(100);
           break;
+        case "setZoom":
+          if (typeof payload === "number" && Number.isFinite(payload)) {
+            setZoom(Math.min(500, Math.max(10, Math.round(payload))));
+          }
+          break;
         case "statusBar":
           setStatusBar((v) => !v);
           break;
-        case "about":
-          await showInfo(
-            "NoteEasy\nA lightweight Notepad with inline text highlighting.\nBuilt with Tauri 2.",
-          );
+        case "darkMode":
+          setDarkMode((v) => !v);
           break;
         default:
           break;
       }
     },
-    [newTab, openFile, persistSession, saveTab, updateTab],
+    [newTab, openFile, persistSession, saveTab, updateTab, lockHighlightUi],
   );
 
   // Keyboard shortcuts
@@ -478,16 +652,11 @@ export default function App() {
   }, [closeTab, findQuery, handleAction]);
 
   if (!ready || !activeTab) {
-    return <div className="app" />;
+    return <div className={`app${darkMode ? " dark" : ""}`} />;
   }
 
   return (
-    <div className="app">
-      <MenuBar
-        onAction={handleAction}
-        wordWrap={wordWrap}
-        statusBar={statusBar}
-      />
+    <div className={`app${darkMode ? " dark" : ""}`}>
       <TabBar
         tabs={tabs}
         activeId={activeTab.id}
@@ -497,6 +666,10 @@ export default function App() {
           setCtxMenu(null);
         }}
         onClose={closeTab}
+        onCloseLeft={closeTabsLeft}
+        onCloseRight={closeTabsRight}
+        onCloseOthers={closeOtherTabs}
+        onCloseAll={closeAllTabs}
         onNew={newTab}
       />
       <FormatToolbar
@@ -504,6 +677,39 @@ export default function App() {
         active={activeFormats}
         selectionFontSize={activeFormats.fontSize}
         baseFontSize={fontSize}
+        lastCustomHighlight={lastCustomHighlight}
+        lastCustomTextColor={lastCustomTextColor}
+        darkMode={darkMode}
+        zoom={zoom}
+        findOpen={!!findMode}
+        textColorInputRef={textColorInputRef}
+        highlightColorInputRef={highlightColorInputRef}
+      />
+      <input
+        ref={textColorInputRef}
+        type="color"
+        className="sr-color-input"
+        defaultValue="#00897b"
+        onChange={(e) => {
+          const color = e.target.value;
+          setLastCustomTextColor(color);
+          handleAction("setTextColor", color);
+        }}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+      <input
+        ref={highlightColorInputRef}
+        type="color"
+        className="sr-color-input"
+        defaultValue="#c8e6c9"
+        onChange={(e) => {
+          const color = e.target.value;
+          setLastCustomHighlight(color);
+          handleAction("highlight", color);
+        }}
+        tabIndex={-1}
+        aria-hidden="true"
       />
       <FindBar
         mode={findMode}
@@ -545,7 +751,7 @@ export default function App() {
           setLine(ln);
           setColumn(col);
         }}
-        onActiveFormatsChange={setActiveFormats}
+        onActiveFormatsChange={onActiveFormatsChange}
         onContextMenu={(pos) => setCtxMenu(pos)}
       />
       <StatusBar
@@ -554,6 +760,8 @@ export default function App() {
         zoom={zoom}
         encoding={activeTab.encoding}
         visible={statusBar}
+        words={words}
+        characters={characters}
       />
       {ctxMenu && (
         <EditorContextMenu
@@ -561,8 +769,17 @@ export default function App() {
           y={ctxMenu.y}
           currentStyle={ctxMenu.docStyle || activeFormats.docStyle || "body"}
           active={activeFormats}
+          selectionFrom={ctxMenu.selectionFrom}
+          selectionTo={ctxMenu.selectionTo}
           onAction={handleAction}
           onClose={() => setCtxMenu(null)}
+          onCustomHighlight={(anchorEl) => {
+            openNativeColorPicker(
+              highlightColorInputRef.current,
+              anchorEl || document.querySelector(".ctx-menu"),
+              lastCustomHighlight || "#c8e6c9",
+            );
+          }}
         />
       )}
       {fontOpen && (
