@@ -243,9 +243,30 @@ const NotepadEditor = forwardRef(function NotepadEditor(
       undo: () => editor?.chain().focus().undo().run(),
       redo: () => editor?.chain().focus().redo().run(),
       selectAll: () => editor?.chain().focus().selectAll().run(),
-      bold: () => editor?.chain().focus().toggleBold().run(),
-      italic: () => editor?.chain().focus().toggleItalic().run(),
-      strike: () => editor?.chain().focus().toggleStrike().run(),
+      bold: () => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().toggleBold().run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
+      italic: () => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().toggleItalic().run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
+      strike: () => {
+        if (!editor) return false;
+        const ok = editor.chain().focus().toggleStrike().run();
+        onActiveFormatsChangeRef.current?.(
+          readFormats(editor, highlightTypingOffRef.current),
+        );
+        return ok;
+      },
       bulletList: () => editor?.chain().focus().toggleBulletList().run(),
       orderedList: () => editor?.chain().focus().toggleOrderedList().run(),
       highlight: (color = "#ffeb3b") => {
@@ -452,6 +473,14 @@ function readFormats(editor, highlightTypingOff = false) {
   const { selection, storedMarks } = editor.state;
   const typingMarks =
     selection.empty && storedMarks != null ? storedMarks : null;
+
+  function markOn(name) {
+    if (typingMarks != null) {
+      return typingMarks.some((m) => m.type.name === name);
+    }
+    return editor.isActive(name);
+  }
+
   const typingHighlight =
     typingMarks != null
       ? typingMarks.find((m) => m.type.name === "highlight")
@@ -470,16 +499,30 @@ function readFormats(editor, highlightTypingOff = false) {
     highlightColor = highlightAttrs?.color || null;
   }
 
+  let textColor = textStyle?.color || null;
+  let fontSize = textStyle?.fontSize || null;
+  if (typingMarks != null) {
+    const ts = typingMarks.find((m) => m.type.name === "textStyle");
+    if (ts) {
+      if (ts.attrs?.color != null) textColor = ts.attrs.color;
+      if (ts.attrs?.fontSize != null) fontSize = ts.attrs.fontSize;
+    } else {
+      // Explicit empty stored marks → don't inherit neighbor color/size for UI
+      textColor = null;
+      fontSize = null;
+    }
+  }
+
   return {
-    bold: editor.isActive("bold"),
-    italic: editor.isActive("italic"),
-    strike: editor.isActive("strike"),
+    bold: markOn("bold"),
+    italic: markOn("italic"),
+    strike: markOn("strike"),
     bulletList: editor.isActive("bulletList"),
     orderedList: editor.isActive("orderedList"),
     highlight,
     highlightColor,
-    textColor: textStyle?.color || null,
-    fontSize: textStyle?.fontSize || null,
+    textColor,
+    fontSize,
     docStyle: editor.state.selection.$from.parent.attrs?.docStyle || "body",
   };
 }

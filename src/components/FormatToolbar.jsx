@@ -112,6 +112,7 @@ export default function FormatToolbar({
   const [openMenu, setOpenMenu] = useState(null);
   // Local highlight UI so clicks update instantly (editor format sync can lag).
   const [hlUi, setHlUi] = useState(null); // null = follow props; { on, color }
+  const [markUi, setMarkUi] = useState(null); // null = follow props; { bold?, italic?, strike? }
   const [zoomDraft, setZoomDraft] = useState(() => zoomToFactor(zoom));
   const rootRef = useRef(null);
   const customTextSwatchRef = useRef(null);
@@ -136,8 +137,28 @@ export default function FormatToolbar({
   }, [a.highlight, a.highlightColor, hlUi]);
 
   useEffect(() => {
+    if (!markUi) return;
+    const keys = Object.keys(markUi);
+    const matches = keys.every((k) => !!a[k] === !!markUi[k]);
+    if (matches) setMarkUi(null);
+  }, [a.bold, a.italic, a.strike, markUi]);
+
+  useEffect(() => {
     setZoomDraft(zoomToFactor(zoom));
   }, [zoom]);
+
+  function toggleMark(action) {
+    setMarkUi((prev) => {
+      const base = {
+        bold: !!a.bold,
+        italic: !!a.italic,
+        strike: !!a.strike,
+        ...(prev || {}),
+      };
+      return { ...base, [action]: !base[action] };
+    });
+    onAction(action);
+  }
 
   function toggle(menu) {
     setOpenMenu((cur) => (cur === menu ? null : menu));
@@ -188,9 +209,12 @@ export default function FormatToolbar({
   const displayColor =
     a.textColor || (darkMode ? "#e8e8e8" : "#000000");
   const highlightOn = hlUi ? hlUi.on : !!a.highlight;
-  const highlightColor = hlUi
-    ? hlUi.color
-    : a.highlightColor;
+  const highlightColor = hlUi ? hlUi.color : a.highlightColor;
+  const boldOn = markUi && "bold" in markUi ? !!markUi.bold : !!a.bold;
+  const italicOn =
+    markUi && "italic" in markUi ? !!markUi.italic : !!a.italic;
+  const strikeOn =
+    markUi && "strike" in markUi ? !!markUi.strike : !!a.strike;
   const customHighlightActive =
     highlightOn &&
     highlightColor &&
@@ -345,28 +369,31 @@ export default function FormatToolbar({
         <div className="fmt-cluster">
           <button
             type="button"
-            className={`fmt-btn${a.bold ? " active" : ""}`}
+            className={`fmt-btn${boldOn ? " active" : ""}`}
             title="Bold"
+            aria-pressed={boldOn}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onAction("bold")}
+            onClick={() => toggleMark("bold")}
           >
             <span className="fmt-letter fmt-bold">B</span>
           </button>
           <button
             type="button"
-            className={`fmt-btn${a.italic ? " active" : ""}`}
+            className={`fmt-btn${italicOn ? " active" : ""}`}
             title="Italic"
+            aria-pressed={italicOn}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onAction("italic")}
+            onClick={() => toggleMark("italic")}
           >
             <span className="fmt-letter fmt-italic">I</span>
           </button>
           <button
             type="button"
-            className={`fmt-btn${a.strike ? " active" : ""}`}
+            className={`fmt-btn${strikeOn ? " active" : ""}`}
             title="Strikethrough"
+            aria-pressed={strikeOn}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onAction("strike")}
+            onClick={() => toggleMark("strike")}
           >
             <span className="fmt-letter fmt-strike">S</span>
           </button>
@@ -375,12 +402,10 @@ export default function FormatToolbar({
         <div className="format-sep" />
 
         <div className="tb-dropdown text-color-box">
-          <div className="custom-highlight-box">
+          <div className="custom-highlight-box text-color-split">
             <button
               type="button"
-              className={`fmt-btn custom-main color-letter-btn${
-                a.textColor ? " active" : ""
-              }`}
+              className="fmt-btn custom-main color-letter-btn"
               title={
                 a.textColor
                   ? `Font color (${a.textColor})`
@@ -496,7 +521,9 @@ export default function FormatToolbar({
             <NoHighlightIcon />
           </button>
 
-          <div className="custom-highlight-box">
+          <div
+            className={`custom-highlight-box${customHighlightActive ? " is-active" : ""}`}
+          >
             <button
               type="button"
               className={`fmt-btn highlight-swatch custom-main${customHighlightActive ? " active" : ""}`}
@@ -593,8 +620,9 @@ export default function FormatToolbar({
 
         <button
           type="button"
-          className={`fmt-btn${darkMode ? " active" : ""}`}
+          className="fmt-btn theme-btn"
           title="Dark mode"
+          aria-pressed={darkMode}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onAction("darkMode")}
         >

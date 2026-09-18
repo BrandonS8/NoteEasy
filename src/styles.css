@@ -212,8 +212,16 @@ body,
   height: 2px;
   border-radius: 2px;
   background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow: 0 0 6px rgba(0, 120, 212, 0.55);
   pointer-events: none;
+}
+
+.fmt-btn.theme-btn.active::after,
+.fmt-btn.theme-btn::after,
+.text-color-split .fmt-btn.active::after,
+.text-color-split.is-active::after,
+.save-split .fmt-btn.active::after {
+  display: none;
 }
 
 .fmt-cluster .fmt-btn {
@@ -246,9 +254,12 @@ body,
 }
 
 .fmt-cluster .fmt-letter.fmt-strike {
+  font-weight: 400;
+}
+
+.fmt-btn.active .fmt-letter.fmt-strike {
   text-decoration: line-through;
   text-decoration-thickness: 1.25px;
-  font-weight: 400;
 }
 
 .fmt-btn.highlight-swatch .swatch {
@@ -862,12 +873,13 @@ body,
   border-radius: 0;
   height: 30px;
   color: inherit;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .custom-highlight-box .custom-main {
   width: 30px;
   border-right: 1px solid var(--border);
+  position: relative;
 }
 
 .custom-highlight-box .custom-pick {
@@ -883,22 +895,33 @@ body,
   box-shadow: none;
 }
 
+/* Underline only under the swatch, not the chevron */
 .custom-highlight-box .custom-main.active::after {
-  display: none;
-}
-
-.custom-highlight-box:has(.custom-main.active)::after {
   content: "";
   position: absolute;
   left: 4px;
   right: 4px;
-  bottom: -1px;
+  bottom: 2px;
   height: 2px;
   border-radius: 2px;
   background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow: 0 0 6px rgba(0, 120, 212, 0.55);
   pointer-events: none;
   z-index: 1;
+  display: block;
+}
+
+.custom-highlight-box.is-active::after,
+.custom-highlight-box:has(.custom-main.active)::after {
+  content: none;
+  display: none;
+}
+
+.text-color-split .custom-main.active::after,
+.save-split .custom-main.active::after,
+.text-color-split .fmt-btn.active::after,
+.save-split .fmt-btn.active::after {
+  display: none;
 }
 
 .color-letter-btn {
