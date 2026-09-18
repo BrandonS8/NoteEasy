@@ -12,32 +12,54 @@ const FILTERS = [
   { name: "All Files", extensions: ["*"] },
 ];
 
-/** Restore normal cursor before native OS dialogs (WebView can leave a missing I-beam). */
-export function prepareForNativeDialog() {
+/** Force a visible arrow cursor before native OS dialogs (WebView I-beam often vanishes on them). */
+export async function prepareForNativeDialog() {
   try {
+    document.documentElement.classList.add("native-dialog-open");
     document.body.style.cursor = "default";
     document.documentElement.style.cursor = "default";
     if (document.activeElement?.blur) document.activeElement.blur();
+    // Let the browser apply the arrow before the OS dialog opens
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => setTimeout(r, 40));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function restoreAfterNativeDialog() {
+  try {
+    document.documentElement.classList.remove("native-dialog-open");
+    document.body.style.cursor = "";
+    document.documentElement.style.cursor = "";
   } catch {
     /* ignore */
   }
 }
 
 export async function pickOpenPath() {
-  prepareForNativeDialog();
-  return open({
-    multiple: false,
-    directory: false,
-    filters: FILTERS,
-  });
+  await prepareForNativeDialog();
+  try {
+    return await open({
+      multiple: false,
+      directory: false,
+      filters: FILTERS,
+    });
+  } finally {
+    restoreAfterNativeDialog();
+  }
 }
 
 export async function pickSavePath(defaultPath) {
-  prepareForNativeDialog();
-  return save({
-    defaultPath: defaultPath || undefined,
-    filters: FILTERS,
-  });
+  await prepareForNativeDialog();
+  try {
+    return await save({
+      defaultPath: defaultPath || undefined,
+      filters: FILTERS,
+    });
+  } finally {
+    restoreAfterNativeDialog();
+  }
 }
 
 export async function readDocument(filePath) {
@@ -77,16 +99,24 @@ export async function writeDocument(filePath, contentHtml, docStyles = null) {
 }
 
 export async function confirmDiscard(title) {
-  prepareForNativeDialog();
-  return ask(`Do you want to save changes to ${title}?`, {
-    title: "NoteEasy",
-    kind: "warning",
-    okLabel: "Save",
-    cancelLabel: "Don't Save",
-  });
+  await prepareForNativeDialog();
+  try {
+    return await ask(`Do you want to save changes to ${title}?`, {
+      title: "NoteEasy",
+      kind: "warning",
+      okLabel: "Save",
+      cancelLabel: "Don't Save",
+    });
+  } finally {
+    restoreAfterNativeDialog();
+  }
 }
 
 export async function showInfo(text) {
-  prepareForNativeDialog();
-  await message(text, { title: "NoteEasy", kind: "info" });
+  await prepareForNativeDialog();
+  try {
+    await message(text, { title: "NoteEasy", kind: "info" });
+  } finally {
+    restoreAfterNativeDialog();
+  }
 }

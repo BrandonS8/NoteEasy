@@ -722,6 +722,12 @@ body,
   cursor: text;
 }
 
+/* While a native file/ask dialog is open, force an arrow (I-beam can be invisible on it). */
+html.native-dialog-open,
+html.native-dialog-open * {
+  cursor: default !important;
+}
+
 
 .editor-shell.no-wrap .notepad-editor {
   white-space: pre;
