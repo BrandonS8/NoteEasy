@@ -190,6 +190,7 @@ body,
   color: var(--text);
   cursor: default;
   padding: 0;
+  position: relative;
 }
 
 .fmt-btn:hover {
@@ -197,14 +198,26 @@ body,
 }
 
 .fmt-btn.active {
-  background: var(--bg-active);
+  background: transparent;
   border-color: transparent;
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: none;
+}
+
+.fmt-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  pointer-events: none;
 }
 
 .fmt-cluster .fmt-btn {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .fmt-cluster .fmt-letter {
@@ -812,6 +825,7 @@ body,
 
 .fmt-cluster .fmt-btn {
   border-radius: 0;
+  overflow: visible;
 }
 
 .fmt-cluster .fmt-btn:first-child {
@@ -826,21 +840,29 @@ body,
   width: 30px;
 }
 
+.highlight-cluster .fmt-btn.active::after {
+  left: 6px;
+  right: 6px;
+  bottom: 2px;
+}
+
 .custom-highlight-box {
   display: inline-flex;
   align-items: stretch;
   border: 1px solid var(--border-strong);
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
   margin: 0;
   background: var(--bg-elevated);
   color: var(--text);
+  position: relative;
 }
 
 .custom-highlight-box .fmt-btn {
   border-radius: 0;
   height: 30px;
   color: inherit;
+  overflow: hidden;
 }
 
 .custom-highlight-box .custom-main {
@@ -857,9 +879,26 @@ body,
 .custom-highlight-box .custom-main.active,
 .custom-highlight-box:has(.custom-main.active) {
   outline: none;
-  border-color: var(--accent);
-  border-radius: 6px;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.custom-highlight-box .custom-main.active::after {
+  display: none;
+}
+
+.custom-highlight-box:has(.custom-main.active)::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .color-letter-btn {
@@ -972,8 +1011,20 @@ body,
 
 .swatch-btn.active {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--accent);
-  border-radius: 5px;
+  box-shadow: none;
+  position: relative;
+}
+
+.swatch-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: -4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
 .custom-row input[type="color"] {
