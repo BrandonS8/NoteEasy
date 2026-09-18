@@ -75,7 +75,7 @@ const NotepadEditor = forwardRef(function NotepadEditor(
           if (typeof def?.fontSize === "number") return def.fontSize;
           return baseFontSizeRef.current;
         },
-        fallbackSize: 14,
+        fallbackSize: 16,
       }),
       Color,
       Highlight.configure({

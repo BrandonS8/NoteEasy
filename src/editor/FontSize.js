@@ -86,7 +86,7 @@ export const FontSize = Extension.create({
               }
             }
             if (current == null) {
-              current = this.options.fallbackSize || 14;
+              current = this.options.fallbackSize || 16;
             }
 
             const next = Math.max(8, Math.min(200, current + delta));
